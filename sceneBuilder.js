@@ -22,17 +22,16 @@ export const createPlanetarySystem = (scene, config) => {
     const pivot = new BABYLON.TransformNode(`${bodyData.name}-pivot`, scene);
     pivot.metadata = { ...bodyData };
 
-    if (bodyData.radius) {
+    if (bodyData.radius && bodyData.visual) {
       // Só cria mesh se tiver raio
       const mesh = BABYLON.MeshBuilder.CreateSphere(
         bodyData.name,
         { diameter: bodyData.radius * config.scale * 2 },
         scene
       );
+
       mesh.parent = pivot;
-      if (bodyData.visual) {
-        setupMaterial(mesh, bodyData.visual, config);
-      }
+      setupMaterial(mesh, bodyData.visual, config);
 
       // LÓGICA DOS PINOS RESTAURADA AQUI
       if (bodyData.debugFeatures?.polePins) {
@@ -69,18 +68,13 @@ export const createPlanetarySystem = (scene, config) => {
 
     pivot.rotationQuaternion = new BABYLON.Quaternion();
     const tilt = bodyData.axialTilt || 0;
-    const baseAxis = new BABYLON.Vector3(0, 1, 0);
     const tiltQuaternion = BABYLON.Quaternion.RotationAxis(
       new BABYLON.Vector3(0, 0, 1),
       BABYLON.Tools.ToRadians(tilt)
     );
     pivot.rotationQuaternion = tiltQuaternion;
-    pivot.metadata.rotationAxis = baseAxis.rotateByQuaternionToRef(
-      tiltQuaternion,
-      new BABYLON.Vector3()
-    );
 
-    if (bodyData.orbit) {
+    if (bodyData.orbit && !bodyData.components) {
       const orbitPath = getOrbitPathPoints(bodyData.orbit, config.scale);
       const orbitInclination = bodyData.orbit.inclination || 0;
       const inclinationMatrix = BABYLON.Matrix.RotationX(
@@ -91,14 +85,11 @@ export const createPlanetarySystem = (scene, config) => {
       );
       const orbitLine = BABYLON.MeshBuilder.CreateLines(
         `${bodyData.name}-orbit-line`,
-        { points: finalPath, updatable: false },
+        { points: finalPath },
         scene
       );
       orbitLine.color = new BABYLON.Color3(0.5, 0.5, 0.5);
       orbitLine.isVisible = false;
-      if (parentPivot) {
-        orbitLine.parent = parentPivot;
-      }
     }
 
     if (bodyData.moons) {
@@ -112,10 +103,50 @@ export const createPlanetarySystem = (scene, config) => {
 
   config.planets.forEach((bodyData) => {
     if (bodyData.type === "binaryPair") {
-      const barycenterDummy = { name: bodyData.name, orbit: bodyData.orbit };
-      createBodyWithPivot(barycenterDummy);
+      // 1. Desenha a órbita principal (do baricentro)
+      const barycenterPath = getOrbitPathPoints(bodyData.orbit, config.scale);
+      const systemInclinationMatrix = BABYLON.Matrix.RotationX(
+        BABYLON.Tools.ToRadians(bodyData.orbit.inclination || 0)
+      );
+      const finalBarycenterPath = barycenterPath.map((p) =>
+        BABYLON.Vector3.TransformCoordinates(p, systemInclinationMatrix)
+      );
+      const barycenterLine = BABYLON.MeshBuilder.CreateLines(
+        `${bodyData.name}-orbit-line`,
+        { points: finalBarycenterPath },
+        scene
+      );
+      barycenterLine.color = new BABYLON.Color3(0.7, 0.7, 0.7);
+      barycenterLine.isVisible = false;
+
+      // 2. Cria os componentes visuais (Narym, Vezmar) e suas luas
       bodyData.components.forEach((componentData) => {
         createBodyWithPivot(componentData);
+
+        // 3. Desenha as órbitas de Narym e Vezmar em torno do baricentro
+        const mutualOrbitPoints = [];
+        const radius = componentData.orbitRadius * config.scale;
+        const segments = 180;
+        for (let i = 0; i <= segments; i++) {
+          const angle = ((2 * Math.PI) / segments) * i;
+          mutualOrbitPoints.push(
+            new BABYLON.Vector3(
+              radius * Math.cos(angle),
+              0,
+              radius * Math.sin(angle)
+            )
+          );
+        }
+        const finalMutualPath = mutualOrbitPoints.map((p) =>
+          BABYLON.Vector3.TransformCoordinates(p, systemInclinationMatrix)
+        );
+        const mutualLine = BABYLON.MeshBuilder.CreateLines(
+          `${componentData.name}-orbit-line`,
+          { points: finalMutualPath },
+          scene
+        );
+        mutualLine.color = new BABYLON.Color3(0.4, 0.4, 0.4);
+        mutualLine.isVisible = false;
       });
     }
   });

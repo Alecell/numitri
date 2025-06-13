@@ -154,14 +154,27 @@ engine.runRenderLoop(() => {
       const planetFinalPos = barycenterTiltedPos.add(mutualOffsetTilted);
       planetPivot.position = planetFinalPos;
 
+      const componentOrbitLine = scene.getMeshByName(
+        `${componentData.name}-orbit-line`
+      );
+      if (componentOrbitLine) {
+        componentOrbitLine.position = barycenterTiltedPos;
+      }
+
       const rotationSpeed = (2 * Math.PI) / componentData.rotationPeriod;
       const rotationIncrement =
         rotationSpeed * deltaTime * simulationConfig.timeScale;
+
+      // Cria uma rotação em torno do eixo Y LOCAL do pivô
       const frameRotation = BABYLON.Quaternion.RotationAxis(
-        BABYLON.Axis.Y,
+        BABYLON.Axis.Y, // O eixo Y padrão
         rotationIncrement
       );
-      planetPivot.rotationQuaternion.multiplyInPlace(frameRotation);
+
+      // Acumula a rotação. Como o pivô já está inclinado, ele girará no eixo inclinado.
+      if (planetPivot.rotationQuaternion) {
+        planetPivot.rotationQuaternion.multiplyInPlace(frameRotation);
+      }
 
       if (componentData.moons) {
         componentData.moons.forEach((moonData) => {
@@ -181,15 +194,15 @@ engine.runRenderLoop(() => {
           const moonInclinationMatrix = BABYLON.Matrix.RotationX(
             BABYLON.Tools.ToRadians(moonInclination)
           );
-          let moonTiltedPos = BABYLON.Vector3.TransformCoordinates(
+
+          // --- CORREÇÃO DO MOVIMENTO DA LUA ---
+          // O offset da lua é calculado com sua própria inclinação, e depois somado à posição
+          // final e já inclinada do seu planeta pai. Sem dupla inclinação.
+          const moonOffsetTilted = BABYLON.Vector3.TransformCoordinates(
             moonFlatPos,
             moonInclinationMatrix
           );
-          moonTiltedPos = BABYLON.Vector3.TransformCoordinates(
-            moonTiltedPos,
-            systemInclinationMatrix
-          );
-          const moonFinalPos = planetFinalPos.add(moonTiltedPos);
+          const moonFinalPos = planetFinalPos.add(moonOffsetTilted);
           moonPivot.position = moonFinalPos;
 
           moonMesh.lookAt(planetMesh.position);
