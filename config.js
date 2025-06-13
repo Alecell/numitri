@@ -54,7 +54,7 @@ export const simulationConfig = {
             defaultMap: "Visão Real",
             maps: {
               "Visão Real": "asdasd",
-              Biomas: "URL_DA_TEXTURA_DE_BIOMAS_DE_NARYM",
+              Biomas: "https://assets.babylonjs.com/environments/roof.jpg",
             },
           },
           moons: [
@@ -99,7 +99,7 @@ export const simulationConfig = {
         {
           name: "Vezmar",
           radius: 129150, // km
-          axialTilt: 0, // Não especificado, assumindo 0
+          axialTilt: 4, // Não especificado, assumindo 0
           rotationPeriod: 11.3 / 30, // 0.3766 dias narímicos
           orbitRadius: 1910000, // km (distância ao baricentro)
           visual: {

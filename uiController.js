@@ -52,7 +52,9 @@ export const initializeUI = (camera, scene, config) => {
         camera.lockedTarget = targetMesh;
         const meshRadius =
           targetMesh.getBoundingInfo().boundingSphere.radiusWorld;
-        camera.radius = meshRadius * 6;
+        const desiredRadius = meshRadius * 6;
+        const minAllowedRadius = camera.minZ * 1.1;
+        camera.radius = Math.max(desiredRadius, minAllowedRadius);
       }
     };
     group.appendChild(button);

@@ -66,6 +66,8 @@ const createScene = () => {
     new BABYLON.Vector3(0, 0, 0),
     scene
   );
+  povCamera.minZ = 0.1;
+  povCamera.maxZ = 10000;
   povCamera.setEnabled(false);
 
   scene.activeCamera = orbitalCamera;
@@ -77,6 +79,7 @@ const createScene = () => {
 };
 
 const scene = createScene();
+window.scene = scene;
 
 window.addEventListener("activatePovMode", () => {
   isPovModeActive = true;
