@@ -20,32 +20,24 @@ export const simulationConfig = {
 
   planets: [
     {
-      // Esta é a definição do sistema binário como um todo.
       name: "Narym-Vezmar System",
       type: "binaryPair",
-
-      // Órbita do Baricentro ao redor de Anavon
       orbit: {
-        period: 730, // dias narímicos
-        semiMajorAxis: 308000000, // km
-        // e = (afelio - periélio) / (afelio + periélio)
-        // e = (324M - 293M) / (324M + 293M) = 0.0502
+        period: 730,
+        semiMajorAxis: 308000000,
         eccentricity: 0.0502,
         inclination: 8,
       },
-
-      // Órbita mútua dos componentes ao redor do baricentro
       mutualOrbit: {
         period: 365, // dias narímicos
       },
-
-      // Definição dos corpos que compõem o par
       components: [
         {
           name: "Narym",
           radius: 12250, // km
           axialTilt: 29, // graus
           rotationPeriod: 1, // 1 dia narímico
+          precessionPeriod: 500,
           orbitRadius: 5490000, // km (distância ao baricentro)
           debugFeatures: {
             polePins: true, // Habilita a criação dos pinos para este corpo

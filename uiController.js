@@ -204,7 +204,6 @@ export const initializeUI = (camera, scene, config) => {
   });
   timeInput.addEventListener("input", () => {
     let scale = timeInput.value;
-    if (scale > 500) scale = 500;
     if (scale < 0) scale = 0;
     timeSlider.value = scale;
     updateTimeScale(scale);

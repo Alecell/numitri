@@ -176,6 +176,26 @@ engine.runRenderLoop(() => {
         planetPivot.rotationQuaternion.multiplyInPlace(frameRotation);
       }
 
+      if (componentData.precessionPeriod) {
+        const precessionPeriodInDays =
+          componentData.precessionPeriod * yearLength;
+        const precessionSpeed = (2 * Math.PI) / precessionPeriodInDays;
+        const precessionIncrement =
+          precessionSpeed * deltaTime * simulationConfig.timeScale;
+
+        // Cria uma rotação em torno do eixo Y DO MUNDO (o eixo "vertical" do sistema)
+        const precessionRotation = BABYLON.Quaternion.RotationAxis(
+          BABYLON.Axis.Y,
+          precessionIncrement
+        );
+
+        // Aplica a rotação de precessão ANTES da rotação atual do pivô.
+        // Isso faz com que todo o sistema inclinado do pivô "bamboleie"
+        planetPivot.rotationQuaternion = precessionRotation.multiply(
+          planetPivot.rotationQuaternion
+        );
+      }
+
       if (componentData.moons) {
         componentData.moons.forEach((moonData) => {
           const moonPivot = scene.getTransformNodeByName(
