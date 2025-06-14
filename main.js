@@ -51,6 +51,11 @@ const createScene = () => {
   const scene = new BABYLON.Scene(engine);
   scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
 
+  const glowLayer = new BABYLON.GlowLayer("glow", scene, {
+    mainTextureRatio: 0.5,
+  });
+  glowLayer.intensity = 1.5;
+
   orbitalCamera = new BABYLON.ArcRotateCamera(
     "orbitalCamera",
     -Math.PI / 2,
@@ -60,7 +65,7 @@ const createScene = () => {
     scene
   );
   orbitalCamera.attachControl(canvas, true);
-  orbitalCamera.minZ = 0.1;
+  orbitalCamera.minZ = 0.01;
   orbitalCamera.maxZ = 10000;
 
   povCamera = new BABYLON.UniversalCamera(

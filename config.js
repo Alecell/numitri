@@ -45,7 +45,7 @@ export const simulationConfig = {
           visual: {
             defaultMap: "Visão Real",
             maps: {
-              "Visão Real": "asdasd",
+              "Visão Real": "./Mirt.png",
               Biomas: "https://assets.babylonjs.com/environments/roof.jpg",
             },
           },
@@ -131,17 +131,17 @@ export const nebulaConfig = {
   // Configurações do material luminoso e gasoso
   material: {
     // Use uma textura de nuvem/fumaça aqui. Procure por "seamless smoke texture png"
-    textureUrl: "URL_DA_SUA_TEXTURA_DE_NUVEM_AQUI",
-    emissiveColor: "#612D73", // Um tom de roxo para a emissão de luz
+    textureUrl: "./smoke.png",
+    emissiveColor: "#00CED1", // Um tom de roxo para a emissão de luz
     alpha: 0.15, // Transparência geral da nebulosa
   },
 
   fog: {
-    color: "#2E1A22", // Cor da névoa quando Narym está dentro do Véu
+    color: "#006c6d", // Cor da névoa quando Narym está dentro do Véu
     density: 0.01, // Densidade da névoa
   },
 
   debug: {
-    showPath: true, // Mude para true para ver a linha central do tubo
+    showPath: false, // Mude para true para ver a linha central do tubo
   },
 };

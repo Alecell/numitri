@@ -6,15 +6,29 @@ const setupMaterial = (mesh, visualConfig, config) => {
     `${mesh.name}-material`,
     mesh.getScene()
   );
-  if (visualConfig && visualConfig.maps) {
-    const textureUrl = visualConfig.maps[visualConfig.defaultMap];
-    material.diffuseTexture = new BABYLON.Texture(textureUrl, mesh.getScene());
-  }
+
+  // --- LÓGICA AJUSTADA PARA A ESTRELA ---
   if (mesh.name === config.star.name) {
-    material.emissiveTexture = material.diffuseTexture;
-    material.emissiveColor = new BABYLON.Color3(1, 1, 1);
+    // Para a estrela, não usamos textura, apenas uma cor emissiva forte
+    material.emissiveColor = new BABYLON.Color3(1, 1, 0.9); // Branco levemente amarelado
+    material.disableLighting = true; // A estrela não é iluminada, ela emite luz
+  } else if (visualConfig && visualConfig.maps) {
+    const textureUrl = visualConfig.maps[visualConfig.defaultMap];
+    const diffuseTexture = new BABYLON.Texture(textureUrl, mesh.getScene());
+
+    diffuseTexture.vScale = -1;
+
+    material.diffuseTexture = diffuseTexture;
+
+    if (mesh.name === config.star.name) {
+      material.emissiveTexture = diffuseTexture;
+    }
   }
 
+  material.metadata = {
+    originalDiffuse: material.diffuseColor.clone(),
+    originalSpecular: material.specularColor.clone(),
+  };
   material.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
   mesh.material = material;
 };
