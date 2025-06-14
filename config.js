@@ -37,7 +37,7 @@ export const simulationConfig = {
           radius: 12250, // km
           axialTilt: 29, // graus
           rotationPeriod: 1, // 1 dia narímico
-          precessionPeriod: 500,
+          precessionPeriod: 21049,
           orbitRadius: 5490000, // km (distância ao baricentro)
           debugFeatures: {
             polePins: true, // Habilita a criação dos pinos para este corpo
@@ -105,4 +105,43 @@ export const simulationConfig = {
       ],
     },
   ],
+};
+
+export const nebulaConfig = {
+  name: "O Véu de Numitri",
+  enabled: true,
+  path: [
+    { x: 400 - 131, y: 0, z: 350 },
+    { x: 390 - 131, y: 10, z: 250 },
+    { x: 400 - 131, y: -15, z: 150 },
+    { x: 410 - 131, y: 0, z: 50 },
+    { x: 400 - 131, y: 5, z: -50 },
+    { x: 390 - 131, y: -5, z: -150 },
+    { x: 400 - 131, y: 10, z: -250 },
+    { x: 410 - 131, y: -10, z: -350 },
+    { x: 400 - 131, y: 0, z: -450 },
+  ],
+
+  // Configurações do "tubo" que forma o rio
+  tubeSettings: {
+    radius: 30000000, // Raio do tubo em km
+    tessellation: 64, // Suavidade do tubo (mais = mais suave)
+  },
+
+  // Configurações do material luminoso e gasoso
+  material: {
+    // Use uma textura de nuvem/fumaça aqui. Procure por "seamless smoke texture png"
+    textureUrl: "URL_DA_SUA_TEXTURA_DE_NUVEM_AQUI",
+    emissiveColor: "#612D73", // Um tom de roxo para a emissão de luz
+    alpha: 0.15, // Transparência geral da nebulosa
+  },
+
+  fog: {
+    color: "#2E1A22", // Cor da névoa quando Narym está dentro do Véu
+    density: 0.01, // Densidade da névoa
+  },
+
+  debug: {
+    showPath: true, // Mude para true para ver a linha central do tubo
+  },
 };

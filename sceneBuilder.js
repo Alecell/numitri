@@ -1,4 +1,5 @@
 import { getOrbitPathPoints } from "./orbitalMechanics.js";
+import { simulationConfig, nebulaConfig } from "./config.js";
 
 const setupMaterial = (mesh, visualConfig, config) => {
   const material = new BABYLON.StandardMaterial(
@@ -15,6 +16,57 @@ const setupMaterial = (mesh, visualConfig, config) => {
   }
   material.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
   mesh.material = material;
+};
+
+const createNebula = (scene, config) => {
+  if (!config.enabled) return;
+
+  // 1. Cria o caminho a partir dos pontos da configuração
+  const path = config.path.map((p) => new BABYLON.Vector3(p.x, p.y, p.z));
+
+  // 2. Cria a malha procedural do tubo
+  const nebulaMesh = BABYLON.MeshBuilder.CreateTube(
+    "nebula-mesh",
+    {
+      path: path,
+      radius: config.tubeSettings.radius * simulationConfig.scale,
+      tessellation: config.tubeSettings.tessellation,
+      cap: BABYLON.Mesh.NO_CAP, // Extremidades abertas
+    },
+    scene
+  );
+  nebulaMesh.isPickable = false; // Otimização, não podemos clicar nela por enquanto
+
+  // 3. Cria o material emissivo e transparente
+  const material = new BABYLON.StandardMaterial("nebula-mat", scene);
+  // Usaremos a mesma textura para cor e para transparência
+  material.emissiveTexture = new BABYLON.Texture(
+    config.material.textureUrl,
+    scene
+  );
+  material.opacityTexture = material.emissiveTexture;
+
+  // Configurações para o efeito de gás
+  material.disableLighting = true; // Não é afetado pela luz da estrela, brilha sozinho
+  material.emissiveColor = BABYLON.Color3.FromHexString(
+    config.material.emissiveColor
+  );
+  material.alpha = config.material.alpha; // Transparência geral
+
+  // Importante para a renderização correta de objetos transparentes
+  material.backFaceCulling = false;
+  material.alphaMode = BABYLON.Engine.ALPHA_ADD;
+
+  nebulaMesh.material = material;
+
+  // 4. Cria uma linha de debug para ver o caminho
+  if (config.debug.showPath) {
+    BABYLON.MeshBuilder.CreateLines(
+      "nebula-path-line",
+      { points: path },
+      scene
+    ).color = BABYLON.Color3.Teal();
+  }
 };
 
 export const createPlanetarySystem = (scene, config) => {
@@ -157,5 +209,8 @@ export const createPlanetarySystem = (scene, config) => {
     scene
   );
   starLight.intensity = 2;
+
+  createNebula(scene, nebulaConfig);
+
   console.log("Sistema Planetário reconstruído com Pinos de Eixo restaurados.");
 };

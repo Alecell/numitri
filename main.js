@@ -1,4 +1,4 @@
-import { simulationConfig } from "./config.js";
+import { simulationConfig, nebulaConfig } from "./config.js";
 import { createPlanetarySystem } from "./sceneBuilder.js";
 import {
   initializeUI,
@@ -12,6 +12,7 @@ const engine = new BABYLON.Engine(canvas, true);
 
 let orbitalCamera, povCamera;
 let isPovModeActive = false;
+let isNarymInNebula = false;
 
 // Função enterPovMode revertida para a versão de "órbita baixa"
 const enterPovMode = (targetMesh) => {
@@ -234,6 +235,33 @@ engine.runRenderLoop(() => {
         });
       }
     });
+
+    if (nebulaConfig.enabled) {
+      const narymPivot = scene.getTransformNodeByName("Narym-pivot");
+      const nebulaMesh = scene.getMeshByName("nebula-mesh"); // Pega a malha do Véu
+
+      if (narymPivot && nebulaMesh) {
+        const narymPosition = narymPivot.getAbsolutePosition();
+
+        // Verifica se o ponto da posição de Narym intercepta a geometria do Véu
+        const currentlyInside = nebulaMesh.intersectsPoint(narymPosition);
+
+        // Se o estado mudou (entrou ou saiu), aplica o efeito
+        if (currentlyInside && !isNarymInNebula) {
+          isNarymInNebula = true;
+          // Ativa o efeito de névoa (fog)
+          scene.fogMode = BABYLON.Scene.FOGMODE_EXP;
+          scene.fogColor = BABYLON.Color3.FromHexString(nebulaConfig.fog.color);
+          scene.fogDensity = nebulaConfig.fog.density;
+          console.log("Narym ENTROU no Véu de Numitri.");
+        } else if (!currentlyInside && isNarymInNebula) {
+          isNarymInNebula = false;
+          // Desativa a névoa
+          scene.fogMode = BABYLON.Scene.FOGMODE_NONE;
+          console.log("Narym SAIU do Véu de Numitri.");
+        }
+      }
+    }
   }
 
   scene.render();
