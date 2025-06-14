@@ -14,6 +14,7 @@ const setupMaterial = (mesh, visualConfig, config) => {
     material.emissiveTexture = material.diffuseTexture;
     material.emissiveColor = new BABYLON.Color3(1, 1, 1);
   }
+
   material.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
   mesh.material = material;
 };
@@ -209,6 +210,9 @@ export const createPlanetarySystem = (scene, config) => {
     scene
   );
   starLight.intensity = 2;
+  // Define a cor da luz para um branco-amarelado, como uma estrela F5V
+  starLight.diffuse = BABYLON.Color3.FromHexString("#FFF5E1");
+  starLight.specular = BABYLON.Color3.FromHexString("#FFF5E1");
 
   createNebula(scene, nebulaConfig);
 

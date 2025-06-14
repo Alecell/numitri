@@ -49,6 +49,7 @@ const exitPovMode = () => {
 
 const createScene = () => {
   const scene = new BABYLON.Scene(engine);
+  scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
 
   orbitalCamera = new BABYLON.ArcRotateCamera(
     "orbitalCamera",
