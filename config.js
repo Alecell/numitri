@@ -124,8 +124,8 @@ export const nebulaConfig = {
 
   // Configurações do "tubo" que forma o rio
   tubeSettings: {
-    radius: 30000000, // Raio do tubo em km
-    tessellation: 64, // Suavidade do tubo (mais = mais suave)
+    radius: 30_000_000, // Raio do tubo em km
+    tessellation: 10_000, // Suavidade do tubo (mais = mais suave)
   },
 
   // Configurações do material luminoso e gasoso

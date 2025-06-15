@@ -51,6 +51,42 @@ const createScene = () => {
   const scene = new BABYLON.Scene(engine);
   scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
 
+  // --- LÓGICA DO SKYBOX CORRIGIDA E ISOLADA ---
+  // 1. Criamos uma CubeTexture APENAS para o skybox.
+  // Usando a versão de alta qualidade que já sabemos que funciona.
+  const skyboxTexture = BABYLON.CubeTexture.CreateFromImages(
+    [
+      "./skybox/teste_right1.png",
+      "./skybox/teste_left2.png",
+      "./skybox/teste_top3.png",
+      "./skybox/teste_bottom4.png",
+      "./skybox/teste_front5.png",
+      "./skybox/teste_back6.png",
+    ],
+    scene
+  );
+
+  // 2. Criamos o material do skybox.
+  const skyboxMaterial = new BABYLON.StandardMaterial("skyBox", scene);
+  skyboxMaterial.backFaceCulling = false;
+  // A textura é aplicada como uma "reflectionTexture" para o efeito de infinito.
+  skyboxMaterial.reflectionTexture = skyboxTexture;
+  skyboxMaterial.reflectionTexture.coordinatesMode =
+    BABYLON.Texture.SKYBOX_MODE;
+  // Garantimos que o material do skybox não reaja a outras luzes.
+  skyboxMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0);
+  skyboxMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
+
+  // 3. Criamos a caixa e aplicamos o material.
+  const skybox = BABYLON.MeshBuilder.CreateBox(
+    "skybox",
+    { size: 9000.0 },
+    scene
+  );
+  skybox.material = skyboxMaterial;
+  skybox.infiniteDistance = true; // Garante que ele fique sempre no fundo.
+
+  // A GlowLayer agora só será afetada pela estrela, como deveria.
   const glowLayer = new BABYLON.GlowLayer("glow", scene, {
     mainTextureRatio: 0.5,
   });
@@ -65,7 +101,7 @@ const createScene = () => {
     scene
   );
   orbitalCamera.attachControl(canvas, true);
-  orbitalCamera.minZ = 0.01;
+  orbitalCamera.minZ = 0.1;
   orbitalCamera.maxZ = 10000;
 
   povCamera = new BABYLON.UniversalCamera(
@@ -79,6 +115,7 @@ const createScene = () => {
 
   scene.activeCamera = orbitalCamera;
 
+  // O resto das chamadas permanece o mesmo
   createPlanetarySystem(scene, simulationConfig);
   initializeUI(scene.activeCamera, scene, simulationConfig);
 
@@ -256,7 +293,6 @@ engine.runRenderLoop(() => {
         if (currentlyInside && !isNarymInNebula) {
           isNarymInNebula = true;
           // Ativa o efeito de névoa (fog)
-          scene.fogMode = BABYLON.Scene.FOGMODE_EXP;
           scene.fogColor = BABYLON.Color3.FromHexString(nebulaConfig.fog.color);
           scene.fogDensity = nebulaConfig.fog.density;
           console.log("Narym ENTROU no Véu de Numitri.");

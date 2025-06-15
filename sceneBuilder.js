@@ -70,7 +70,6 @@ const createNebula = (scene, config) => {
 
   // Importante para a renderização correta de objetos transparentes
   material.backFaceCulling = false;
-  material.alphaMode = BABYLON.Engine.ALPHA_ADD;
 
   nebulaMesh.material = material;
 
