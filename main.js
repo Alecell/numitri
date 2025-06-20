@@ -6,6 +6,7 @@ import {
   updateTimeDisplay,
 } from "./uiController.js";
 import { calculateEllipticalOrbit } from "./orbitalMechanics.js";
+import { createShadowDecalMaterial, projectShadow } from "./shadowProjector.js";
 
 const canvas = document.getElementById("renderCanvas");
 const engine = new BABYLON.Engine(canvas, true);
@@ -13,6 +14,7 @@ const engine = new BABYLON.Engine(canvas, true);
 let orbitalCamera, povCamera;
 let isPovModeActive = false;
 let isNarymInNebula = false;
+let useProjectedShadows = true;
 
 // Função enterPovMode revertida para a versão de "órbita baixa"
 const enterPovMode = (targetMesh) => {
@@ -47,6 +49,117 @@ const exitPovMode = () => {
   scene.activeCamera.attachControl(canvas, true);
 };
 
+const updateEclipseStatusUI = (message) => {
+  const span = document.getElementById("eclipse-status-text");
+  if (span) span.innerText = message;
+};
+
+const getEclipseStatusMessage = (hitResults) => {
+  const { norte, sul, centro, leste, oeste } = hitResults;
+  const allHits = [norte, sul, centro, leste, oeste].filter(Boolean); // Filtra apenas os que colidiram
+
+  if (allHits.length === 0) {
+    return "Nenhum";
+  }
+
+  // Pega o nome do primeiro corpo que está causando o eclipse
+  const occluderName = allHits[0];
+
+  // Verifica se todos os raios atingiram o mesmo corpo
+  const isTotal =
+    allHits.length === 5 && allHits.every((name) => name === occluderName);
+  if (isTotal) {
+    return `Total por ${occluderName}`;
+  }
+
+  // Lógica para os eclipses parciais
+  if (leste && oeste) {
+    return `Parcial Central por ${occluderName}`;
+  }
+  if (leste) {
+    return `Parcial começando pelo Oeste por ${occluderName}`;
+  }
+  if (oeste) {
+    return `Parcial terminando para Leste por ${occluderName}`;
+  }
+
+  // Se só os raios verticais ou o centro atingiram
+  return `Parcial por ${occluderName}`;
+};
+
+const applyRays = (
+  pivot,
+  componentData,
+  simulationConfig,
+  systemInclinationMatrix
+) => {
+  if (pivot.metadata.rays) {
+    const starPosition = BABYLON.Vector3.Zero();
+    const worldCenter = pivot.getAbsolutePosition();
+    const scaledRadius = componentData.radius * simulationConfig.scale;
+
+    const forward = BABYLON.Vector3.Zero().subtract(worldCenter).normalize();
+
+    const systemUp = BABYLON.Vector3.TransformNormal(
+      BABYLON.Axis.Y,
+      systemInclinationMatrix
+    );
+
+    const right = BABYLON.Vector3.Cross(systemUp, forward).normalize();
+    const up = BABYLON.Vector3.Cross(forward, right).normalize();
+
+    const worldOrigins = {
+      centro: worldCenter,
+      norte: worldCenter.add(up.scale(scaledRadius)),
+      sul: worldCenter.add(up.scale(-scaledRadius)),
+      leste: worldCenter.add(right.scale(scaledRadius)),
+      oeste: worldCenter.add(right.scale(-scaledRadius)),
+    };
+
+    // 3. Itera para atualizar e usar cada um dos seus 5 raios
+    const hitResults = {
+      norte: null,
+      sul: null,
+      centro: null,
+      leste: null,
+      oeste: null,
+    };
+    const predicate = (mesh) => {
+      const isBody = mesh.parent?.metadata?.kind === "body";
+
+      const isNotSelf = !pivot.name.includes(mesh.name);
+
+      return isBody && isNotSelf;
+    };
+
+    // Itera para atualizar e testar cada um dos 5 raios
+    Object.keys(worldOrigins).forEach((originName, index) => {
+      const meuRaio = pivot.metadata.rays[index];
+      if (meuRaio) {
+        const rayOrigin = worldOrigins[originName];
+        const rayDirection = starPosition.subtract(rayOrigin).normalize();
+        meuRaio.origin = rayOrigin;
+        meuRaio.direction = rayDirection;
+        meuRaio.length = 2000;
+
+        const hitInfo = scene.pickWithRay(meuRaio, predicate);
+
+        // Se o raio atingiu um corpo oclusor, guarda o nome do corpo
+        if (hitInfo.hit && OCCLUDING_BODIES.includes(hitInfo.pickedMesh.name)) {
+          hitResults[originName] = hitInfo.pickedMesh.name;
+        }
+      }
+    });
+
+    const statusMessage = getEclipseStatusMessage(hitResults);
+    updateEclipseStatusUI(statusMessage);
+
+    if (useProjectedShadows) {
+      const newDecal = projectShadow(pivot, scene, simulationConfig);
+    }
+  }
+};
+
 const createScene = () => {
   const scene = new BABYLON.Scene(engine);
   scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
@@ -56,12 +169,12 @@ const createScene = () => {
   // Usando a versão de alta qualidade que já sabemos que funciona.
   const skyboxTexture = BABYLON.CubeTexture.CreateFromImages(
     [
-      "./skybox/teste_right1.png",
-      "./skybox/teste_left2.png",
-      "./skybox/teste_top3.png",
-      "./skybox/teste_bottom4.png",
-      "./skybox/teste_front5.png",
-      "./skybox/teste_back6.png",
+      "./skybox/numitri_right1.png",
+      "./skybox/numitri_left2.png",
+      "./skybox/numitri_top3.png",
+      "./skybox/numitri_bottom4.png",
+      "./skybox/numitri_front5.png",
+      "./skybox/numitri_back6.png",
     ],
     scene
   );
@@ -90,7 +203,7 @@ const createScene = () => {
   const glowLayer = new BABYLON.GlowLayer("glow", scene, {
     mainTextureRatio: 0.5,
   });
-  glowLayer.intensity = 1.5;
+  glowLayer.intensity = 5;
 
   orbitalCamera = new BABYLON.ArcRotateCamera(
     "orbitalCamera",
@@ -118,6 +231,7 @@ const createScene = () => {
   // O resto das chamadas permanece o mesmo
   createPlanetarySystem(scene, simulationConfig);
   initializeUI(scene.activeCamera, scene, simulationConfig);
+  createShadowDecalMaterial(scene);
 
   return scene;
 };
@@ -147,6 +261,7 @@ scene.onPointerDown = (evt, pickResult) => {
   }
 };
 
+const OCCLUDING_BODIES = ["Narym", "Vezmar", "Tharela", "Ciren"];
 let simulationTime = 0;
 let isPaused = false;
 let lastTimeScale = simulationConfig.timeScale;
@@ -215,6 +330,13 @@ engine.runRenderLoop(() => {
         rotationIncrement
       );
 
+      applyRays(
+        planetPivot,
+        componentData,
+        simulationConfig,
+        systemInclinationMatrix
+      );
+
       // Acumula a rotação. Como o pivô já está inclinado, ele girará no eixo inclinado.
       if (planetPivot.rotationQuaternion) {
         planetPivot.rotationQuaternion.multiplyInPlace(frameRotation);
@@ -259,9 +381,6 @@ engine.runRenderLoop(() => {
             BABYLON.Tools.ToRadians(moonInclination)
           );
 
-          // --- CORREÇÃO DO MOVIMENTO DA LUA ---
-          // O offset da lua é calculado com sua própria inclinação, e depois somado à posição
-          // final e já inclinada do seu planeta pai. Sem dupla inclinação.
           const moonOffsetTilted = BABYLON.Vector3.TransformCoordinates(
             moonFlatPos,
             moonInclinationMatrix
@@ -275,6 +394,13 @@ engine.runRenderLoop(() => {
           if (orbitLine) {
             orbitLine.position = planetFinalPos;
           }
+
+          applyRays(
+            moonPivot,
+            moonData,
+            simulationConfig,
+            systemInclinationMatrix
+          );
         });
       }
     });

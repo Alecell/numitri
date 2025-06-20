@@ -70,6 +70,12 @@ const createNebula = (scene, config) => {
 
   // Importante para a renderização correta de objetos transparentes
   material.backFaceCulling = false;
+  material.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
+  material.needDepthPrePass = true;
+
+  material.diffuseTexture = new BABYLON.Texture("./smoke.png", scene);
+  material.diffuseTexture.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
+  material.diffuseTexture.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
 
   nebulaMesh.material = material;
 
@@ -97,6 +103,32 @@ export const createPlanetarySystem = (scene, config) => {
       );
 
       mesh.parent = pivot;
+
+      if (!pivot.metadata) {
+        pivot.metadata = {};
+      }
+
+      pivot.metadata.rays = [
+        new BABYLON.Ray(pivot.position, new BABYLON.Vector3(0, 0, 0), 1000),
+        new BABYLON.Ray(pivot.position, new BABYLON.Vector3(0, 0, 0), 1000),
+        new BABYLON.Ray(pivot.position, new BABYLON.Vector3(0, 0, 0), 1000),
+        new BABYLON.Ray(pivot.position, new BABYLON.Vector3(0, 0, 0), 1000),
+        new BABYLON.Ray(pivot.position, new BABYLON.Vector3(0, 0, 0), 1000),
+      ];
+      pivot.metadata.eclipseRay = new BABYLON.Ray(
+        pivot.position,
+        new BABYLON.Vector3(0, 0, 0),
+        1000
+      );
+
+      new BABYLON.RayHelper(pivot.metadata.eclipseRay).show(scene);
+
+      new BABYLON.RayHelper(pivot.metadata.rays[0]).show(scene);
+      new BABYLON.RayHelper(pivot.metadata.rays[1]).show(scene);
+      new BABYLON.RayHelper(pivot.metadata.rays[2]).show(scene);
+      new BABYLON.RayHelper(pivot.metadata.rays[3]).show(scene);
+      new BABYLON.RayHelper(pivot.metadata.rays[4]).show(scene);
+
       setupMaterial(mesh, bodyData.visual, config);
 
       // LÓGICA DOS PINOS RESTAURADA AQUI
