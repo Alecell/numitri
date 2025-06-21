@@ -168,12 +168,16 @@ const getEclipseStatusMessage = (hitResults) => {
 
 const updateNebulaDecay = (pivot) => {
   const mesh = pivot.getChildren()[0];
-  if (!mesh || !mesh.material || !isNarymInNebula) return;
-
   const bodyData = pivot.metadata;
   const centralRay = pivot.metadata.rays?.[2];
 
-  if (!bodyData.deepNebula || !centralRay) {
+  if (
+    !mesh ||
+    !mesh.material ||
+    !isNarymInNebula ||
+    !bodyData.deepNebula ||
+    !centralRay
+  ) {
     mesh.material.diffuseColor.set(1, 1, 1);
     return;
   }
