@@ -88,7 +88,7 @@ export const simulationConfig = {
                   diameter: 48000,
                 },
                 Ciren: {
-                  type: "partial",
+                  type: "total",
                   diameter: 1930,
                 },
               },
