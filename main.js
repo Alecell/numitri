@@ -18,6 +18,7 @@ let orbitalCamera, povCamera;
 let isPovModeActive = false;
 let isNarymInNebula = false;
 let useProjectedShadows = true;
+let displayRays = false;
 
 // Função enterPovMode revertida para a versão de "órbita baixa"
 const enterPovMode = (targetMesh) => {
@@ -161,6 +162,20 @@ const applyRays = (
       projectShadow(pivot, scene, simulationConfig);
     }
   }
+
+  if (pivot.metadata.raysHelper && displayRays) {
+    pivot.metadata.raysHelper.forEach((rayHelper) => {
+      if (rayHelper) {
+        rayHelper.show(scene);
+      }
+    });
+  } else {
+    pivot.metadata.raysHelper.forEach((rayHelper) => {
+      if (rayHelper) {
+        rayHelper.hide(scene);
+      }
+    });
+  }
 };
 
 const createScene = () => {
@@ -249,6 +264,10 @@ window.addEventListener("activatePovMode", () => {
 
 window.addEventListener("exitPovMode", () => {
   exitPovMode();
+});
+
+window.addEventListener("toggleRayDebug", (event) => {
+  displayRays = event.detail.isVisible;
 });
 
 scene.onPointerDown = (evt, pickResult) => {
@@ -391,6 +410,7 @@ engine.runRenderLoop(() => {
           const moonFinalPos = planetFinalPos.add(moonOffsetTilted);
           moonPivot.position = moonFinalPos;
 
+          console.log(moonMesh, planetMesh);
           moonMesh.lookAt(planetMesh.position);
 
           const orbitLine = scene.getMeshByName(`${moonData.name}-orbit-line`);

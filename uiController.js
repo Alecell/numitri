@@ -189,6 +189,26 @@ export const initializeUI = (camera, scene, config) => {
 
   menuContainer.appendChild(visualRefGroup);
 
+  // LÓGICA DO CHECKBOX DE RAIO (DEBUG)
+  const rayToggleLabel = document.createElement("label");
+  rayToggleLabel.className = "control-group";
+  rayToggleLabel.style.display = "flex";
+  rayToggleLabel.style.alignItems = "center";
+  rayToggleLabel.style.gap = "8px";
+  rayToggleLabel.style.cursor = "pointer";
+  rayToggleLabel.innerHTML = `<input type="checkbox" id="ray-toggle"> Exibir Raios (Debug)`;
+
+  const rayToggle = rayToggleLabel.querySelector("#ray-toggle");
+  rayToggle.addEventListener("change", (event) => {
+    // Dispara um evento global que o main.js irá ouvir
+    window.dispatchEvent(
+      new CustomEvent("toggleRayDebug", {
+        detail: { isVisible: event.target.checked },
+      })
+    );
+  });
+  visualRefGroup.appendChild(rayToggleLabel);
+
   // --- GRUPO DE CONTROLES DE TEMPO E ZOOM ---
   const timeGroup = document.createElement("div");
   timeGroup.className = "control-group";

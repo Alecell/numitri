@@ -121,13 +121,14 @@ export const createPlanetarySystem = (scene, config) => {
         1000
       );
 
-      new BABYLON.RayHelper(pivot.metadata.eclipseRay).show(scene);
-
-      new BABYLON.RayHelper(pivot.metadata.rays[0]).show(scene);
-      new BABYLON.RayHelper(pivot.metadata.rays[1]).show(scene);
-      new BABYLON.RayHelper(pivot.metadata.rays[2]).show(scene);
-      new BABYLON.RayHelper(pivot.metadata.rays[3]).show(scene);
-      new BABYLON.RayHelper(pivot.metadata.rays[4]).show(scene);
+      pivot.metadata.raysHelper = [
+        new BABYLON.RayHelper(pivot.metadata.eclipseRay),
+        new BABYLON.RayHelper(pivot.metadata.rays[0]),
+        new BABYLON.RayHelper(pivot.metadata.rays[1]),
+        new BABYLON.RayHelper(pivot.metadata.rays[2]),
+        new BABYLON.RayHelper(pivot.metadata.rays[3]),
+        new BABYLON.RayHelper(pivot.metadata.rays[4]),
+      ];
 
       setupMaterial(mesh, bodyData.visual, config);
 

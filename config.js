@@ -68,7 +68,7 @@ export const simulationConfig = {
             {
               name: "Tharela",
               kind: "body",
-              radius: 2200, // km
+              radius: 22000, // km
               rotationPeriod: 4, // Rotação síncrona com a órbita
               orbit: {
                 period: 4, // dias narímicos
