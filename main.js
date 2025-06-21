@@ -14,10 +14,12 @@ import {
 const canvas = document.getElementById("renderCanvas");
 const engine = new BABYLON.Engine(canvas, true);
 
-let orbitalCamera, povCamera;
+let orbitalCamera, povCamera, inspectionCamera;
 let isPovModeActive = false;
 let isNarymInNebula = false;
 let displayRays = false;
+let isInInspectMode = false;
+let inspectedTarget = null;
 
 // Função enterPovMode revertida para a versão de "órbita baixa"
 const enterPovMode = (targetMesh) => {
@@ -55,6 +57,87 @@ const exitPovMode = () => {
 const updateEclipseStatusUI = (message) => {
   const span = document.getElementById("eclipse-status-text");
   if (span) span.innerText = message;
+};
+
+const enterInspectMode = () => {
+  // 1. A FONTE DA VERDADE: Pega o alvo diretamente da câmera orbital.
+  const targetMesh = orbitalCamera.lockedTarget;
+
+  // 2. VERIFICAÇÃO: Se não houver alvo, ou se já estivermos no modo, não faz nada.
+  if (!targetMesh || isInInspectMode) {
+    console.warn("Modo Inspeção: Nenhum alvo selecionado.");
+    // Opcional: podemos desabilitar o botão de sair da UI aqui por segurança.
+    return;
+  }
+
+  isInInspectMode = true;
+  inspectedTarget = targetMesh;
+
+  // Pausa a simulação (lógica que já tínhamos)
+  if (!isPaused) {
+    lastTimeScale = simulationConfig.timeScale;
+    simulationConfig.timeScale = 0;
+    isPaused = true;
+    updateTimeControlsUI(0);
+  }
+
+  // Configura a câmera de inspeção (lógica que já tínhamos)
+  const meshRadius = targetMesh.getBoundingInfo().boundingSphere.radiusWorld;
+  inspectionCamera.target = targetMesh.getAbsolutePosition();
+  inspectionCamera.radius = meshRadius * 3;
+  inspectionCamera.lowerRadiusLimit = meshRadius * 0.8;
+  inspectionCamera.upperRadiusLimit = meshRadius * 1.5;
+
+  // Troca as câmeras ativas (lógica que já tínhamos)
+  scene.activeCamera.detachControl();
+  scene.activeCamera = inspectionCamera;
+  inspectionCamera.setEnabled(true);
+  scene.activeCamera.attachControl(canvas, true);
+
+  // Atualiza a UI para mostrar o painel de inspeção
+  document.getElementById("controls-menu").style.display = "none";
+  const inspectionPanel = document.getElementById("inspection-panel");
+  inspectionPanel.style.display = "block";
+  // Atualiza o nome do alvo no painel
+  document.getElementById("inspection-target-name").innerText = targetMesh.name;
+};
+
+const exitInspectMode = (detail) => {
+  if (!isInInspectMode) return;
+
+  // Desativa a luz do lado escuro, se estiver ligada
+  toggleDarkSideLight(detail);
+  document.getElementById("light-dark-side-toggle").checked = false;
+
+  isInInspectMode = false;
+  inspectedTarget = null;
+
+  // 1. Retoma a simulação
+  simulationConfig.timeScale = lastTimeScale;
+  isPaused = false;
+  updateTimeControlsUI(simulationConfig.timeScale);
+
+  // 2. Troca as câmeras de volta
+  scene.activeCamera.detachControl();
+  scene.activeCamera = orbitalCamera;
+  orbitalCamera.setEnabled(true);
+  scene.activeCamera.attachControl(canvas, true);
+
+  // 3. Atualiza a UI
+  document.getElementById("inspection-panel").style.display = "none";
+  document.getElementById("controls-menu").style.display = "block";
+};
+
+const toggleDarkSideLight = ({ isEnabled, scene }) => {
+  const hemiLight = scene.getLightByName("hemi");
+
+  if (isNarymInNebula && isEnabled) {
+    hemiLight.intensity = 1;
+  } else if (!isNarymInNebula && isEnabled) {
+    hemiLight.intensity = 0.8;
+  } else {
+    hemiLight.intensity = 0;
+  }
 };
 
 const getEclipseStatusMessage = (hitResults) => {
@@ -285,6 +368,27 @@ const createScene = () => {
   povCamera.maxZ = 10000;
   povCamera.setEnabled(false);
 
+  inspectionCamera = new BABYLON.ArcRotateCamera(
+    "inspectionCamera",
+    -Math.PI / 2, // Ângulo inicial
+    Math.PI / 2.5, // Inclinação inicial
+    1, // Raio/zoom inicial (será ajustado dinamicamente)
+    BABYLON.Vector3.Zero(), // Alvo inicial (será ajustado dinamicamente)
+    scene
+  );
+
+  inspectionCamera.minZ = 0.001;
+  inspectionCamera.maxZ = 10;
+  inspectionCamera.setEnabled(false);
+
+  const hemiLight = new BABYLON.HemisphericLight(
+    "hemi",
+    new BABYLON.Vector3(0, 0, 0),
+    scene
+  );
+  hemiLight.intensity = 0;
+  hemiLight.diffuse = new BABYLON.Color3(1, 1, 1);
+
   scene.activeCamera = orbitalCamera;
 
   // O resto das chamadas permanece o mesmo
@@ -310,6 +414,15 @@ window.addEventListener("exitPovMode", () => {
 window.addEventListener("toggleRayDebug", (event) => {
   displayRays = event.detail.isVisible;
 });
+
+// --- EVENT LISTENERS ---
+window.addEventListener("enterInspectMode", enterInspectMode);
+window.addEventListener("exitInspectMode", (event) => {
+  exitInspectMode(event.detail);
+});
+window.addEventListener("toggleDarkSideLight", (event) =>
+  toggleDarkSideLight(event.detail)
+);
 
 scene.onPointerDown = (evt, pickResult) => {
   if (isPovModeActive && pickResult.hit) {

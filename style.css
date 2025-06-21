@@ -14,7 +14,8 @@ body {
 }
 
 /* MODIFICADO para #controls-menu */
-#controls-menu {
+#controls-menu,
+#inspection-panel {
   position: absolute;
   top: 15px;
   right: 15px;
@@ -35,7 +36,8 @@ body {
   font-size: 16px;
 }
 
-#controls-menu button {
+#controls-menu button,
+#inspection-panel button {
   display: block;
   width: 100%;
   padding: 8px;

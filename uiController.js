@@ -63,9 +63,15 @@ export const initializeUI = (camera, scene, config) => {
         const desiredRadius = meshRadius * 6;
         const minAllowedRadius = camera.minZ * 1.1;
         camera.radius = Math.max(desiredRadius, minAllowedRadius);
+
+        const inspectBtn = document.getElementById("inspect-mode-btn");
+        if (inspectBtn) {
+          inspectBtn.disabled = false;
+        }
       }
     };
     group.appendChild(button);
+
     if (bodyData.visual && bodyData.visual.maps) {
       const label = document.createElement("label");
       label.innerText = "Mapa de Textura";
@@ -126,6 +132,23 @@ export const initializeUI = (camera, scene, config) => {
     povBtn.style.display = "block";
     exitPovBtn.style.display = "none";
     window.dispatchEvent(new CustomEvent("exitPovMode"));
+  });
+
+  const inspectionGroup = document.createElement("div");
+  inspectionGroup.className = "control-group";
+  inspectionGroup.innerHTML = `
+    <button id="inspect-mode-btn" disabled>Inspecionar Alvo</button>
+`;
+  menuContainer.appendChild(inspectionGroup);
+
+  const inspectBtn = inspectionGroup.querySelector("#inspect-mode-btn");
+
+  inspectBtn.addEventListener("click", () => {
+    const exitInspectBtn = document.querySelector("#exit-inspect-mode-btn");
+    inspectBtn.style.display = "none";
+    exitInspectBtn.style.display = "block";
+    // Dispara o evento para o main.js agir
+    window.dispatchEvent(new CustomEvent("enterInspectMode"));
   });
 
   // --- GRUPO DE CONTROLES DE DEBUG ---
@@ -267,4 +290,44 @@ export const initializeUI = (camera, scene, config) => {
     updateZoomSensitivity(power);
   });
   updateZoomSensitivity(zoomSlider.value);
+
+  const inspectionPanel = document.createElement("div");
+  inspectionPanel.id = "inspection-panel";
+  inspectionPanel.className = "controls-menu";
+  inspectionPanel.style.display = "none";
+  inspectionPanel.innerHTML = `
+    <h3>Modo Inspeção</h3>
+    <p id="inspection-target-name" style="font-weight: bold; margin-bottom: 10px;"></p>
+    <div class="control-group">
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="light-dark-side-toggle"> Iluminar Lado Escuro
+        </label>
+    </div>
+    <button id="exit-inspect-mode-btn" style="display:none; background-color: #8c2a2a;">Sair da Inspeção</button>
+  `;
+
+  document.body.appendChild(inspectionPanel);
+
+  const exitInspectBtn = inspectionPanel.querySelector(
+    "#exit-inspect-mode-btn"
+  );
+
+  exitInspectBtn.addEventListener("click", () => {
+    inspectBtn.style.display = "block";
+    exitInspectBtn.style.display = "none";
+    // Dispara o evento para o main.js agir
+    window.dispatchEvent(
+      new CustomEvent("exitInspectMode", { detail: { scene } })
+    );
+  });
+
+  // Adicionamos os listeners para o painel
+  const lightToggle = document.getElementById("light-dark-side-toggle");
+  lightToggle.addEventListener("change", (event) => {
+    window.dispatchEvent(
+      new CustomEvent("toggleDarkSideLight", {
+        detail: { isEnabled: event.target.checked, scene },
+      })
+    );
+  });
 };
