@@ -291,6 +291,44 @@ export const initializeUI = (camera, scene, config) => {
   });
   updateZoomSensitivity(zoomSlider.value);
 
+  const jumpGroup = document.createElement("div");
+  jumpGroup.className = "control-group";
+  jumpGroup.innerHTML = `
+    <label>Salto no Tempo</label>
+    <div class="time-jump-container" style="display: flex; gap: 5px; align-items: center;">
+        <input type="number" id="jump-year-input" placeholder="Ano" style="width: 50px;">
+        <input type="number" id="jump-day-input" placeholder="Dia" style="width: 50px;">
+        <input type="number" id="jump-hour-input" placeholder="Hora" style="width: 50px;">
+        <button id="jump-to-time-btn" style="flex-grow: 1;">Pular</button>
+    </div>
+`;
+  menuContainer.appendChild(jumpGroup);
+
+  // Adiciona o listener para o botão "Pular"
+  const jumpButton = document.getElementById("jump-to-time-btn");
+  jumpButton.addEventListener("click", () => {
+    const yearInput = document.getElementById("jump-year-input");
+    const dayInput = document.getElementById("jump-day-input");
+    const hourInput = document.getElementById("jump-hour-input");
+
+    // Lê os valores, tratando campos vazios como 0
+    const year = parseInt(yearInput.value, 10) || 0;
+    const day = parseInt(dayInput.value, 10) || 0;
+    const hour = parseInt(hourInput.value, 10) || 0;
+
+    // Dispara o evento global com os dados
+    window.dispatchEvent(
+      new CustomEvent("jumpToTime", {
+        detail: { year, day, hour },
+      })
+    );
+
+    // Limpa os campos após o uso para feedback visual
+    yearInput.value = "";
+    dayInput.value = "";
+    hourInput.value = "";
+  });
+
   const inspectionPanel = document.createElement("div");
   inspectionPanel.id = "inspection-panel";
   inspectionPanel.className = "controls-menu";

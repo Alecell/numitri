@@ -172,6 +172,7 @@ export const createPlanetarySystem = (scene, config) => {
       BABYLON.Tools.ToRadians(tilt)
     );
     pivot.rotationQuaternion = tiltQuaternion;
+    pivot.metadata.baseTiltQuaternion = tiltQuaternion.clone();
 
     if (bodyData.orbit && !bodyData.components) {
       const orbitPath = getOrbitPathPoints(bodyData.orbit, config.scale);

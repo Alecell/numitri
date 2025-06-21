@@ -437,6 +437,7 @@ scene.onPointerDown = (evt, pickResult) => {
   }
 };
 
+const NARIM_HOURS_IN_DAY = 30.0;
 const OCCLUDING_BODIES = ["Narym", "Vezmar", "Tharela", "Ciren"];
 let simulationTime = 0;
 let isPaused = false;
@@ -662,6 +663,53 @@ window.addEventListener("keydown", (event) => {
       break;
   }
 });
+
+const handleJumpToTime = ({ year, day, hour }) => {
+  console.log(
+    `Recebido pedido de salto para Ano: ${year}, Dia: ${day}, Hora: ${hour}`
+  );
+
+  const binarySystem = simulationConfig.planets.find(
+    (p) => p.type === "binaryPair"
+  );
+  if (!binarySystem) {
+    console.error(
+      "Não foi possível encontrar os dados do sistema binário no config."
+    );
+    return;
+  }
+  const yearLengthInDays = binarySystem.orbit.period;
+
+  // Converte a data humanamente legível para o total de dias Narímicos
+  const newSimulationTime =
+    year * yearLengthInDays + day + hour / NARIM_HOURS_IN_DAY;
+
+  // Validação para evitar valores negativos
+  if (newSimulationTime < 0) {
+    console.warn(
+      "Salto no tempo para data negativa não é permitido. Definindo para 0."
+    );
+    simulationTime = 0;
+  } else {
+    // O SALTO: Define a variável de tempo global para o novo valor
+    simulationTime = newSimulationTime;
+  }
+
+  console.log(
+    `Simulation time definido para: ${simulationTime.toFixed(2)} dias`
+  );
+
+  // Força uma atualização imediata do display de tempo na UI
+  updateTimeDisplay(simulationTime, yearLengthInDays);
+
+  // Se a simulação estiver pausada, isso garante que a cena se atualize
+  // para a nova posição mesmo sem o render loop estar avançando o tempo.
+  // O próximo frame já mostrará o sistema na nova data.
+};
+
+window.addEventListener("jumpToTime", (event) =>
+  handleJumpToTime(event.detail)
+);
 
 window.addEventListener("resize", () => {
   engine.resize();

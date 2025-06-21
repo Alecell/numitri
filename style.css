@@ -13,6 +13,27 @@ body {
   touch-action: none;
 }
 
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background-color: rgba(0, 0, 0, 0); /* Transparente */
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0); /* Transparente */
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: rgba(0, 0, 0, 0); /* Transparente */
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0) rgba(0, 0, 0, 0);
+}
+
 /* MODIFICADO para #controls-menu */
 #controls-menu,
 #inspection-panel {
@@ -21,11 +42,14 @@ body {
   right: 15px;
   background-color: rgba(0, 0, 0, 0.6);
   padding: 10px;
+  padding-right: 0;
   border-radius: 8px;
   z-index: 100;
   font-family: sans-serif;
   color: white;
   min-width: 180px; /* Aumentado para caber nos novos controles */
+  bottom: 15px;
+  overflow: auto;
 }
 
 #controls-menu h3 {
