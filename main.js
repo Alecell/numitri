@@ -6,7 +6,10 @@ import {
   updateTimeDisplay,
 } from "./uiController.js";
 import { calculateEllipticalOrbit } from "./orbitalMechanics.js";
-import { createShadowDecalMaterial, projectShadow } from "./shadowProjector.js";
+import {
+  initializeEclipseMaterials,
+  projectShadow,
+} from "./shadowProjector.js";
 
 const canvas = document.getElementById("renderCanvas");
 const engine = new BABYLON.Engine(canvas, true);
@@ -155,7 +158,7 @@ const applyRays = (
     updateEclipseStatusUI(statusMessage);
 
     if (useProjectedShadows) {
-      const newDecal = projectShadow(pivot, scene, simulationConfig);
+      projectShadow(pivot, scene, simulationConfig);
     }
   }
 };
@@ -231,7 +234,7 @@ const createScene = () => {
   // O resto das chamadas permanece o mesmo
   createPlanetarySystem(scene, simulationConfig);
   initializeUI(scene.activeCamera, scene, simulationConfig);
-  createShadowDecalMaterial(scene);
+  initializeEclipseMaterials(scene);
 
   return scene;
 };

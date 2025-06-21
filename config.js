@@ -52,8 +52,8 @@ export const simulationConfig = {
           },
           shadowCasting: {
             Vezmar: {
-              type: "anular",
-              diameter: 43500,
+              type: "annular",
+              diameter: 68000,
             },
             Tharela: {
               type: "total",
@@ -78,15 +78,15 @@ export const simulationConfig = {
               },
               shadowCasting: {
                 Narym: {
-                  type: "parcial",
+                  type: "partial",
                   diameter: 3030,
                 },
                 Vezmar: {
-                  type: "anular",
-                  diameter: 43500,
+                  type: "annular",
+                  diameter: 48000,
                 },
                 Ciren: {
-                  type: "parcial",
+                  type: "partial",
                   diameter: 1930,
                 },
               },
@@ -111,15 +111,15 @@ export const simulationConfig = {
               },
               shadowCasting: {
                 Narym: {
-                  type: "anular",
+                  type: "annular",
                   diameter: 6655,
                 },
                 Vezmar: {
-                  type: "anular",
+                  type: "annular",
                   diameter: 43500,
                 },
                 Tharela: {
-                  type: "parcial",
+                  type: "partial",
                   diameter: 325,
                 },
               },
