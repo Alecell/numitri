@@ -35,6 +35,7 @@ export const simulationConfig = {
         {
           name: "Narym",
           kind: "body",
+          deepNebula: 53.1,
           radius: 12250, // km
           axialTilt: 29, // graus
           rotationPeriod: 1, // 1 dia narímico
@@ -68,6 +69,7 @@ export const simulationConfig = {
             {
               name: "Tharela",
               kind: "body",
+              deepNebula: 53.4,
               radius: 2200, // km
               rotationPeriod: 4, // Rotação síncrona com a órbita
               orbit: {
@@ -101,6 +103,7 @@ export const simulationConfig = {
             {
               name: "Ciren",
               kind: "body",
+              deepNebula: 53.8,
               radius: 1400, // km
               rotationPeriod: 19, // Rotação síncrona com a órbita
               orbit: {
@@ -136,6 +139,7 @@ export const simulationConfig = {
         {
           name: "Vezmar",
           kind: "body",
+          deepNebula: 45.7,
           radius: 129150, // km
           axialTilt: 4, // Não especificado, assumindo 0
           rotationPeriod: 11.3 / 30, // 0.3766 dias narímicos
@@ -169,7 +173,6 @@ export const simulationConfig = {
 
 export const nebulaConfig = {
   name: "O Véu de Numitri",
-  kind: "body",
   enabled: true,
   path: [
     {
@@ -677,7 +680,7 @@ export const nebulaConfig = {
   // Configurações do "tubo" que forma o rio
   tubeSettings: {
     radius: 30_000_000, // Raio do tubo em km
-    tessellation: 10_000, // Suavidade do tubo (mais = mais suave)
+    tessellation: 10, // Suavidade do tubo (mais = mais suave)
   },
 
   // Configurações do material luminoso e gasoso

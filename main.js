@@ -17,7 +17,6 @@ const engine = new BABYLON.Engine(canvas, true);
 let orbitalCamera, povCamera;
 let isPovModeActive = false;
 let isNarymInNebula = false;
-let useProjectedShadows = true;
 let displayRays = false;
 
 // Função enterPovMode revertida para a versão de "órbita baixa"
@@ -91,6 +90,51 @@ const getEclipseStatusMessage = (hitResults) => {
   return `Parcial por ${occluderName}`;
 };
 
+/**
+ * Atualiza o decaimento da iluminação de um corpo celeste ao entrar no Véu.
+ * Usa o raio central para medir a profundidade e interpola o diffuseColor.
+ * @param {BABYLON.TransformNode} pivot - O pivô do corpo celeste.
+ */
+const updateNebulaDecay = (pivot) => {
+  const mesh = pivot.getChildren()[0]; // Pega a malha visível (esfera)
+  if (!mesh || !mesh.material || !isNarymInNebula) return; // Sai se não houver malha ou material
+
+  const bodyData = pivot.metadata;
+  const centralRay = pivot.metadata.rays?.[2]; // Usa o ? para acesso seguro
+
+  // Verifica se o corpo tem configuração para interação e um raio central
+  if (!bodyData.deepNebula || !centralRay) {
+    // Se não, garante que a cor esteja no padrão e sai
+    mesh.material.diffuseColor.set(1, 1, 1);
+    return;
+  }
+
+  const maxDistance = bodyData.deepNebula;
+  const nebulaPredicate = (mesh) => mesh.name === "nebula-mesh";
+  const hitInfo = scene.pickWithRay(centralRay, nebulaPredicate);
+
+  if (hitInfo.hit) {
+    // ESTAMOS DENTRO DO VÉU
+    const distance = hitInfo.distance;
+
+    // 1. Calcula a proporção da penetração (0.0 a 1.0)
+    // Usamos Math.min para "clampar" o valor em 1.0 se a distância exceder a máxima.
+    const ratio = Math.min(distance / maxDistance, 1.0);
+
+    // 2. Interpola linearmente o valor do diffuse
+    // A fórmula é: start + ratio * (end - start)
+    // start = 1.0 (brilho total), end = 0.1 (brilho mínimo)
+    // 1.0 + ratio * (0.1 - 1.0)  =>  1.0 - (ratio * 0.9)
+    const diffuseValue = 1.0 - ratio * 0.9;
+
+    // 3. Aplica a cor no material
+    mesh.material.diffuseColor.set(diffuseValue, diffuseValue, diffuseValue);
+  } else {
+    // ESTAMOS FORA DO VÉU, restaura para o brilho total
+    mesh.material.diffuseColor.set(1, 1, 1);
+  }
+};
+
 const applyRays = (
   pivot,
   componentData,
@@ -133,20 +177,20 @@ const applyRays = (
 
       const isNotSelf = !pivot.name.includes(mesh.name);
 
-      return isBody && isNotSelf;
+      return isNotSelf && isBody;
     };
 
     // Itera para atualizar e testar cada um dos 5 raios
     Object.keys(worldOrigins).forEach((originName, index) => {
-      const meuRaio = pivot.metadata.rays[index];
-      if (meuRaio) {
+      const pivotRay = pivot.metadata.rays[index];
+      if (pivotRay) {
         const rayOrigin = worldOrigins[originName];
         const rayDirection = starPosition.subtract(rayOrigin).normalize();
-        meuRaio.origin = rayOrigin;
-        meuRaio.direction = rayDirection;
-        meuRaio.length = 2000;
+        pivotRay.origin = rayOrigin;
+        pivotRay.direction = rayDirection;
+        pivotRay.length = 2000;
 
-        const hitInfo = scene.pickWithRay(meuRaio, predicate);
+        const hitInfo = scene.pickWithRay(pivotRay, predicate);
 
         // Se o raio atingiu um corpo oclusor, guarda o nome do corpo
         if (hitInfo.hit && OCCLUDING_BODIES.includes(hitInfo.pickedMesh.name)) {
@@ -157,10 +201,7 @@ const applyRays = (
 
     const statusMessage = getEclipseStatusMessage(hitResults);
     updateEclipseStatusUI(statusMessage);
-
-    if (useProjectedShadows) {
-      projectShadow(pivot, scene, simulationConfig);
-    }
+    projectShadow(pivot, scene, simulationConfig);
   }
 
   if (pivot.metadata.raysHelper && displayRays) {
@@ -359,6 +400,8 @@ engine.runRenderLoop(() => {
         systemInclinationMatrix
       );
 
+      updateNebulaDecay(planetPivot);
+
       // Acumula a rotação. Como o pivô já está inclinado, ele girará no eixo inclinado.
       if (planetPivot.rotationQuaternion) {
         planetPivot.rotationQuaternion.multiplyInPlace(frameRotation);
@@ -431,6 +474,8 @@ engine.runRenderLoop(() => {
             simulationConfig,
             systemInclinationMatrix
           );
+
+          updateNebulaDecay(moonPivot);
         });
       }
     });
