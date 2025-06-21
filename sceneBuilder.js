@@ -36,39 +36,33 @@ const setupMaterial = (mesh, visualConfig, config) => {
 const createNebula = (scene, config) => {
   if (!config.enabled) return;
 
-  // 1. Cria o caminho a partir dos pontos da configuração
   const path = config.path.map((p) => new BABYLON.Vector3(p.x, p.y, p.z));
 
-  // 2. Cria a malha procedural do tubo
   const nebulaMesh = BABYLON.MeshBuilder.CreateTube(
     "nebula-mesh",
     {
       path: path,
       radius: config.tubeSettings.radius * simulationConfig.scale,
       tessellation: config.tubeSettings.tessellation,
-      cap: BABYLON.Mesh.NO_CAP, // Extremidades abertas
+      cap: BABYLON.Mesh.NO_CAP,
     },
     scene
   );
-  nebulaMesh.isPickable = false; // Otimização, não podemos clicar nela por enquanto
+  nebulaMesh.isPickable = false;
 
-  // 3. Cria o material emissivo e transparente
   const material = new BABYLON.StandardMaterial("nebula-mat", scene);
-  // Usaremos a mesma textura para cor e para transparência
   material.emissiveTexture = new BABYLON.Texture(
     config.material.textureUrl,
     scene
   );
   material.opacityTexture = material.emissiveTexture;
 
-  // Configurações para o efeito de gás
-  material.disableLighting = true; // Não é afetado pela luz da estrela, brilha sozinho
+  material.disableLighting = true;
   material.emissiveColor = BABYLON.Color3.FromHexString(
     config.material.emissiveColor
   );
-  material.alpha = config.material.alpha; // Transparência geral
+  material.alpha = config.material.alpha;
 
-  // Importante para a renderização correta de objetos transparentes
   material.backFaceCulling = false;
   material.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
   material.needDepthPrePass = true;
@@ -79,7 +73,6 @@ const createNebula = (scene, config) => {
 
   nebulaMesh.material = material;
 
-  // 4. Cria uma linha de debug para ver o caminho
   if (config.debug.showPath) {
     BABYLON.MeshBuilder.CreateLines(
       "nebula-path-line",
