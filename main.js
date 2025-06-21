@@ -410,8 +410,15 @@ engine.runRenderLoop(() => {
           const moonFinalPos = planetFinalPos.add(moonOffsetTilted);
           moonPivot.position = moonFinalPos;
 
-          console.log(moonMesh, planetMesh);
-          moonMesh.lookAt(planetMesh.position);
+          const orbitalAngle =
+            ((2 * Math.PI) / moonData.orbit.period) * simulationTime;
+
+          const spinRotation = BABYLON.Quaternion.RotationAxis(
+            BABYLON.Axis.Y,
+            -orbitalAngle
+          );
+
+          moonPivot.rotationQuaternion = spinRotation;
 
           const orbitLine = scene.getMeshByName(`${moonData.name}-orbit-line`);
           if (orbitLine) {
