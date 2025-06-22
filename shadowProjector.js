@@ -99,8 +99,8 @@ export const projectShadow = (occluderPivot, scene, config) => {
   // 1. O raio sai do corpo que causa a sombra, na direção oposta à estrela
   const origin = occluderPivot.getAbsolutePosition();
   const direction = origin.subtract(star.getAbsolutePosition()).normalize();
-  occluderPivot.metadata.eclipseRay.origin = origin;
-  occluderPivot.metadata.eclipseRay.direction = direction;
+  occluderPivot.metadata.backwardRay.origin = origin;
+  occluderPivot.metadata.backwardRay.direction = direction;
 
   // Predicado para o raio só atingir os corpos celestes
   const predicate = (mesh) => {
@@ -112,7 +112,7 @@ export const projectShadow = (occluderPivot, scene, config) => {
     return isBody && isNotSelf && isMesh;
   };
   const pickInfo = scene.pickWithRay(
-    occluderPivot.metadata.eclipseRay,
+    occluderPivot.metadata.backwardRay,
     predicate
   );
 
@@ -148,7 +148,7 @@ export const projectShadow = (occluderPivot, scene, config) => {
     // 4. Cria o decalque de sombra na superfície do corpo atingido
     const decal = BABYLON.MeshBuilder.CreateDecal("decal", receiverMesh, {
       position: pickInfo.pickedPoint,
-      normal: occluderPivot.metadata.eclipseRay.direction,
+      normal: occluderPivot.metadata.backwardRay.direction,
       size: decalSize,
       angle: Math.random() * Math.PI * 2,
     });
@@ -164,6 +164,10 @@ export const projectShadow = (occluderPivot, scene, config) => {
     ) {
       decal.material = totalDecalMaterial;
     }
+
+    console.log(
+      `Sombra projetada de ${occluderPivot.name} para ${receiverName})`
+    );
 
     state.push({ ...id, decal });
 

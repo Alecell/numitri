@@ -101,26 +101,20 @@ export const createPlanetarySystem = (scene, config) => {
         pivot.metadata = {};
       }
 
-      pivot.metadata.rays = [
-        new BABYLON.Ray(pivot.position, new BABYLON.Vector3(0, 0, 0), 1000),
-        new BABYLON.Ray(pivot.position, new BABYLON.Vector3(0, 0, 0), 1000),
-        new BABYLON.Ray(pivot.position, new BABYLON.Vector3(0, 0, 0), 1000),
-        new BABYLON.Ray(pivot.position, new BABYLON.Vector3(0, 0, 0), 1000),
-        new BABYLON.Ray(pivot.position, new BABYLON.Vector3(0, 0, 0), 1000),
-      ];
-      pivot.metadata.eclipseRay = new BABYLON.Ray(
+      pivot.metadata.forwardRay = new BABYLON.Ray(
+        pivot.position,
+        new BABYLON.Vector3(0, 0, 0),
+        1000
+      );
+      pivot.metadata.backwardRay = new BABYLON.Ray(
         pivot.position,
         new BABYLON.Vector3(0, 0, 0),
         1000
       );
 
       pivot.metadata.raysHelper = [
-        new BABYLON.RayHelper(pivot.metadata.eclipseRay),
-        new BABYLON.RayHelper(pivot.metadata.rays[0]),
-        new BABYLON.RayHelper(pivot.metadata.rays[1]),
-        new BABYLON.RayHelper(pivot.metadata.rays[2]),
-        new BABYLON.RayHelper(pivot.metadata.rays[3]),
-        new BABYLON.RayHelper(pivot.metadata.rays[4]),
+        new BABYLON.RayHelper(pivot.metadata.forwardRay),
+        new BABYLON.RayHelper(pivot.metadata.backwardRay),
       ];
 
       setupMaterial(mesh, bodyData.visual, config);

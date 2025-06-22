@@ -40,16 +40,8 @@ export const initializeUI = (camera, scene, config) => {
     `;
   menuContainer.appendChild(timeDisplayGroup);
 
-  const eclipseStatusGroup = document.createElement("div");
-  eclipseStatusGroup.className = "time-display"; // Reusa o mesmo estilo
-  eclipseStatusGroup.style.marginTop = "10px";
-  eclipseStatusGroup.innerHTML = `
-      <p>Status Eclipse: <span id="eclipse-status-text">Nenhum</span></p>
-  `;
-  menuContainer.appendChild(eclipseStatusGroup);
-
   const createBodyControls = (bodyData) => {
-    if (!bodyData.visual) return; // Só cria controles para corpos visuais
+    if (!bodyData.visual) return;
     const group = document.createElement("div");
     group.className = "body-control-group";
     const button = document.createElement("button");

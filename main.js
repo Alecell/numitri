@@ -132,44 +132,10 @@ const toggleDarkSideLight = ({ isEnabled, scene }) => {
 // =======================================================
 // FUNÇÕES DE ATUALIZAÇÃO E CÁLCULO
 // =======================================================
-const updateEclipseStatusUI = (message) => {
-  const span = document.getElementById("eclipse-status-text");
-  if (span) span.innerText = message;
-};
-
-const getEclipseStatusMessage = (hitResults) => {
-  const { norte, sul, centro, leste, oeste } = hitResults;
-  const allHits = [norte, sul, centro, leste, oeste].filter(Boolean);
-
-  if (allHits.length === 0) {
-    return "Nenhum";
-  }
-
-  const occluderName = allHits[0];
-
-  const isTotal =
-    allHits.length === 5 && allHits.every((name) => name === occluderName);
-  if (isTotal) {
-    return `Total por ${occluderName}`;
-  }
-
-  if (leste && oeste) {
-    return `Parcial Central por ${occluderName}`;
-  }
-  if (leste) {
-    return `Parcial começando pelo Oeste por ${occluderName}`;
-  }
-  if (oeste) {
-    return `Parcial terminando para Leste por ${occluderName}`;
-  }
-
-  return `Parcial por ${occluderName}`;
-};
-
 const updateNebulaDecay = (pivot) => {
   const mesh = pivot.getChildren()[0];
   const bodyData = pivot.metadata;
-  const centralRay = pivot.metadata.rays?.[2];
+  const centralRay = pivot.metadata.forwardRay;
 
   if (
     !mesh ||
@@ -203,63 +169,17 @@ const applyRays = (
   simulationConfig,
   systemInclinationMatrix
 ) => {
-  if (pivot.metadata.rays) {
+  if (pivot.metadata.forwardRay) {
     const starPosition = BABYLON.Vector3.Zero();
     const worldCenter = pivot.getAbsolutePosition();
-    const scaledRadius = componentData.radius * simulationConfig.scale;
 
-    const forward = BABYLON.Vector3.Zero().subtract(worldCenter).normalize();
+    const rayOrigin = worldCenter;
+    const rayDirection = starPosition.subtract(rayOrigin).normalize();
+    const forwardRay = pivot.metadata.forwardRay;
+    forwardRay.origin = rayOrigin;
+    forwardRay.direction = rayDirection;
+    forwardRay.length = 2000;
 
-    const systemUp = BABYLON.Vector3.TransformNormal(
-      BABYLON.Axis.Y,
-      systemInclinationMatrix
-    );
-
-    const right = BABYLON.Vector3.Cross(systemUp, forward).normalize();
-    const up = BABYLON.Vector3.Cross(forward, right).normalize();
-
-    const worldOrigins = {
-      centro: worldCenter,
-      norte: worldCenter.add(up.scale(scaledRadius)),
-      sul: worldCenter.add(up.scale(-scaledRadius)),
-      leste: worldCenter.add(right.scale(scaledRadius)),
-      oeste: worldCenter.add(right.scale(-scaledRadius)),
-    };
-
-    const hitResults = {
-      norte: null,
-      sul: null,
-      centro: null,
-      leste: null,
-      oeste: null,
-    };
-    const predicate = (mesh) => {
-      const isBody = mesh.parent?.metadata?.kind === "body";
-
-      const isNotSelf = !pivot.name.includes(mesh.name);
-
-      return isNotSelf && isBody;
-    };
-
-    Object.keys(worldOrigins).forEach((originName, index) => {
-      const pivotRay = pivot.metadata.rays[index];
-      if (pivotRay) {
-        const rayOrigin = worldOrigins[originName];
-        const rayDirection = starPosition.subtract(rayOrigin).normalize();
-        pivotRay.origin = rayOrigin;
-        pivotRay.direction = rayDirection;
-        pivotRay.length = 2000;
-
-        const hitInfo = scene.pickWithRay(pivotRay, predicate);
-
-        if (hitInfo.hit && OCCLUDING_BODIES.includes(hitInfo.pickedMesh.name)) {
-          hitResults[originName] = hitInfo.pickedMesh.name;
-        }
-      }
-    });
-
-    const statusMessage = getEclipseStatusMessage(hitResults);
-    updateEclipseStatusUI(statusMessage);
     projectShadow(pivot, scene, simulationConfig);
   }
 
