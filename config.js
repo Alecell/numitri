@@ -1,3 +1,26 @@
+/**
+ * TODO: Identificador de estações - qual é a estação corrente no norte e no sul
+ * Aqui é mencionado tambem ter um dado de intensidade de radiação solar. Colocar
+ * um possivel medidor de insolação atual das trez zonas planetarias Polar, temperada e equatorial
+ * IMPORTANTE: esse item na verdade são 2 itens, tanto o identificador de estações quanto o medidor de insolação
+ *
+ * TODO: Temperatura Média Orbital - A QUANTIDADE TOTAL de energia que o planeta como um todo está recebendo de Anavon. Ele responde à pergunta: "Narym, como um todo, está em uma fase mais quente ou mais fria de sua órbita anual?"
+ *
+ * TODO: Atividade de auroras - uma barrinha que tem no maximo "global" e no minimo "polar"
+ * conforme se afunda no numve vai mudando a posiçào das auroras
+ *
+ * TODO: Medidor de pressão atmosferica - conforme se afunda no numve vai mudando a cor do medidor
+ * pq no numve a parte da atmosfera CO2 poderia congelar nos polos depositando como gelo seco
+ * reduzindo a pressão atmosférica temporariamente gerando uma pequena mas mensuravel variaçào
+ * de pressão
+ *
+ * TODO: Medidor de maré - mas eu realmente não sei como eu exibiria isso. Talvez basear
+ * no pino do equador, se o pino do equador possuir mares baixas, significa que onde ele
+ * nào está, o mar está alto. E vice-versa. Mas como exibir isso? Indice de força de maré
+ *
+ *
+ */
+
 export const simulationConfig = {
   scale: 1e-6,
   timeScale: 1,
