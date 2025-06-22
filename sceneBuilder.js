@@ -9,9 +9,8 @@ const setupMaterial = (mesh, visualConfig, config) => {
 
   // --- LÓGICA AJUSTADA PARA A ESTRELA ---
   if (mesh.name === config.star.name) {
-    // Para a estrela, não usamos textura, apenas uma cor emissiva forte
-    material.emissiveColor = new BABYLON.Color3(1, 1, 0.9); // Branco levemente amarelado
-    material.disableLighting = true; // A estrela não é iluminada, ela emite luz
+    material.emissiveColor = new BABYLON.Color3(1, 1, 0.9);
+    material.disableLighting = true;
   } else if (visualConfig && visualConfig.maps) {
     const textureUrl = visualConfig.maps[visualConfig.defaultMap];
     const diffuseTexture = new BABYLON.Texture(textureUrl, mesh.getScene());
@@ -29,7 +28,7 @@ const setupMaterial = (mesh, visualConfig, config) => {
     originalDiffuse: material.diffuseColor.clone(),
     originalSpecular: material.specularColor.clone(),
   };
-  material.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+  material.specularColor = new BABYLON.Color3(0, 0, 0);
   mesh.material = material;
 };
 
@@ -88,7 +87,6 @@ export const createPlanetarySystem = (scene, config) => {
     pivot.metadata = { ...bodyData };
 
     if (bodyData.radius && bodyData.visual) {
-      // Só cria mesh se tiver raio
       const mesh = BABYLON.MeshBuilder.CreateSphere(
         bodyData.name,
         { diameter: bodyData.radius * config.scale * 2 },
@@ -119,7 +117,6 @@ export const createPlanetarySystem = (scene, config) => {
 
       setupMaterial(mesh, bodyData.visual, config);
 
-      // LÓGICA DOS PINOS RESTAURADA AQUI
       if (bodyData.debugFeatures?.polePins) {
         const scaledRadius = bodyData.radius * config.scale;
         const northPin = BABYLON.MeshBuilder.CreateCylinder(
@@ -190,7 +187,6 @@ export const createPlanetarySystem = (scene, config) => {
 
   config.planets.forEach((bodyData) => {
     if (bodyData.type === "binaryPair") {
-      // 1. Desenha a órbita principal (do baricentro)
       const barycenterPath = getOrbitPathPoints(bodyData.orbit, config.scale);
       const systemInclinationMatrix = BABYLON.Matrix.RotationX(
         BABYLON.Tools.ToRadians(bodyData.orbit.inclination || 0)
@@ -206,11 +202,9 @@ export const createPlanetarySystem = (scene, config) => {
       barycenterLine.color = new BABYLON.Color3(0.7, 0.7, 0.7);
       barycenterLine.isVisible = false;
 
-      // 2. Cria os componentes visuais (Narym, Vezmar) e suas luas
       bodyData.components.forEach((componentData) => {
         createBodyWithPivot(componentData);
 
-        // 3. Desenha as órbitas de Narym e Vezmar em torno do baricentro
         const mutualOrbitPoints = [];
         const radius = componentData.orbitRadius * config.scale;
         const segments = 180;
@@ -244,7 +238,6 @@ export const createPlanetarySystem = (scene, config) => {
     scene
   );
   starLight.intensity = 2;
-  // Define a cor da luz para um branco-amarelado, como uma estrela F5V
   starLight.diffuse = BABYLON.Color3.FromHexString("#FFF5E1");
   starLight.specular = BABYLON.Color3.FromHexString("#FFF5E1");
 

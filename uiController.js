@@ -1,7 +1,4 @@
-/**
- * Controlador da UI
- * Gerencia todos os elementos de interface, como menus e sliders.
- */
+const NARIM_HOURS_IN_DAY = 30.0;
 
 const mapRange = (value, inMin, inMax, outMin, outMax) => {
   return ((value - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin;
@@ -16,15 +13,25 @@ export const updateTimeControlsUI = (newScale) => {
   }
 };
 
-export const updateTimeDisplay = (simulationTime, yearLengthInDays) => {
-  const daysDisplay = document.getElementById("days-display");
+export const updateTimeDisplay = (time, yearLengthInDays) => {
   const yearsDisplay = document.getElementById("years-display");
+  const daysDisplay = document.getElementById("days-display");
+  const hoursDisplay = document.getElementById("hours-display");
 
-  if (daysDisplay && yearsDisplay) {
-    const years = simulationTime / yearLengthInDays;
-    daysDisplay.innerText = simulationTime.toFixed(2);
-    yearsDisplay.innerText = years.toFixed(2);
-  }
+  if (!yearsDisplay || !daysDisplay || !hoursDisplay) return;
+
+  const currentYear = Math.floor(time / yearLengthInDays);
+  const dayOfYear = Math.floor(time % yearLengthInDays);
+  const fractionOfDay = time - Math.floor(time);
+  const totalMinutesInDay = NARIM_HOURS_IN_DAY * 60;
+  const currentMinuteOfDay = Math.floor(fractionOfDay * totalMinutesInDay);
+  const currentHour = Math.floor(currentMinuteOfDay / 60);
+  const currentMinute = currentMinuteOfDay % 60;
+  const formattedHour = String(currentHour).padStart(2, "0");
+  const formattedMinute = String(currentMinute).padStart(2, "0");
+  yearsDisplay.innerText = currentYear;
+  daysDisplay.innerText = dayOfYear;
+  hoursDisplay.innerText = `${formattedHour}:${formattedMinute}`;
 };
 
 export const initializeUI = (camera, scene, config) => {
@@ -35,13 +42,14 @@ export const initializeUI = (camera, scene, config) => {
   const timeDisplayGroup = document.createElement("div");
   timeDisplayGroup.className = "time-display";
   timeDisplayGroup.innerHTML = `
-        <p>Anos: <span id="years-display">0.00</span></p>
-        <p>Dias: <span id="days-display">0.00</span></p>
-    `;
+    <p>Ano: <span id="years-display">0</span></p>
+    <p>Dia: <span id="days-display">0</span></p>
+    <p>Hora: <span id="hours-display">00:00</span></p>
+  `;
   menuContainer.appendChild(timeDisplayGroup);
 
   const createBodyControls = (bodyData) => {
-    if (!bodyData.visual) return;
+    if (!bodyData.visual || bodyData.name === "Anavon") return;
     const group = document.createElement("div");
     group.className = "body-control-group";
     const button = document.createElement("button");
@@ -139,7 +147,6 @@ export const initializeUI = (camera, scene, config) => {
     const exitInspectBtn = document.querySelector("#exit-inspect-mode-btn");
     inspectBtn.style.display = "none";
     exitInspectBtn.style.display = "block";
-    // Dispara o evento para o main.js agir
     window.dispatchEvent(new CustomEvent("enterInspectMode"));
   });
 
@@ -215,7 +222,6 @@ export const initializeUI = (camera, scene, config) => {
 
   const rayToggle = rayToggleLabel.querySelector("#ray-toggle");
   rayToggle.addEventListener("change", (event) => {
-    // Dispara um evento global que o main.js irá ouvir
     window.dispatchEvent(
       new CustomEvent("toggleRayDebug", {
         detail: { isVisible: event.target.checked },
@@ -288,37 +294,37 @@ export const initializeUI = (camera, scene, config) => {
   jumpGroup.innerHTML = `
     <label>Salto no Tempo</label>
     <div class="time-jump-container" style="display: flex; gap: 5px; align-items: center;">
-        <input type="number" id="jump-year-input" placeholder="Ano" style="width: 50px;">
+        <input type="number" id="jump-year-input" placeholder="Ano" style="width: 60px;">
         <input type="number" id="jump-day-input" placeholder="Dia" style="width: 50px;">
-        <input type="number" id="jump-hour-input" placeholder="Hora" style="width: 50px;">
+        <input type="number" id="jump-hour-input" placeholder="Hr" style="width: 40px;">
+        <input type="number" id="jump-minute-input" placeholder="Min" style="width: 40px;">
         <button id="jump-to-time-btn" style="flex-grow: 1;">Pular</button>
     </div>
 `;
   menuContainer.appendChild(jumpGroup);
 
-  // Adiciona o listener para o botão "Pular"
   const jumpButton = document.getElementById("jump-to-time-btn");
   jumpButton.addEventListener("click", () => {
     const yearInput = document.getElementById("jump-year-input");
     const dayInput = document.getElementById("jump-day-input");
     const hourInput = document.getElementById("jump-hour-input");
+    const minuteInput = document.getElementById("jump-minute-input");
 
-    // Lê os valores, tratando campos vazios como 0
     const year = parseInt(yearInput.value, 10) || 0;
     const day = parseInt(dayInput.value, 10) || 0;
     const hour = parseInt(hourInput.value, 10) || 0;
+    const minute = parseInt(minuteInput.value, 10) || 0;
 
-    // Dispara o evento global com os dados
     window.dispatchEvent(
       new CustomEvent("jumpToTime", {
-        detail: { year, day, hour },
+        detail: { year, day, hour, minute },
       })
     );
 
-    // Limpa os campos após o uso para feedback visual
     yearInput.value = "";
     dayInput.value = "";
     hourInput.value = "";
+    minuteInput.value = "";
   });
 
   const inspectionPanel = document.createElement("div");
@@ -345,13 +351,11 @@ export const initializeUI = (camera, scene, config) => {
   exitInspectBtn.addEventListener("click", () => {
     inspectBtn.style.display = "block";
     exitInspectBtn.style.display = "none";
-    // Dispara o evento para o main.js agir
     window.dispatchEvent(
       new CustomEvent("exitInspectMode", { detail: { scene } })
     );
   });
 
-  // Adicionamos os listeners para o painel
   const lightToggle = document.getElementById("light-dark-side-toggle");
   lightToggle.addEventListener("change", (event) => {
     window.dispatchEvent(

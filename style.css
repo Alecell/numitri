@@ -16,25 +16,23 @@ body {
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
-  background-color: rgba(0, 0, 0, 0); /* Transparente */
+  background-color: rgba(0, 0, 0, 0);
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: rgba(0, 0, 0, 0); /* Transparente */
+  background-color: rgba(0, 0, 0, 0);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-track {
-  background-color: rgba(0, 0, 0, 0); /* Transparente */
+  background-color: rgba(0, 0, 0, 0);
 }
 
-/* Firefox */
 * {
   scrollbar-width: thin;
   scrollbar-color: rgba(0, 0, 0, 0) rgba(0, 0, 0, 0);
 }
 
-/* MODIFICADO para #controls-menu */
 #controls-menu,
 #inspection-panel {
   position: absolute;
@@ -47,7 +45,7 @@ body {
   z-index: 100;
   font-family: sans-serif;
   color: white;
-  min-width: 180px; /* Aumentado para caber nos novos controles */
+  min-width: 180px;
   bottom: 15px;
   overflow: auto;
 }
@@ -80,7 +78,6 @@ body {
   border-color: #777;
 }
 
-/* --- NOVAS REGRAS PARA O SLIDER DE ZOOM --- */
 .control-group {
   margin-top: 15px;
   padding-top: 10px;
@@ -112,8 +109,6 @@ body {
   border-radius: 4px;
   padding: 4px;
 }
-
-/* --- NOVAS REGRAS PARA AGRUPAMENTO DE CONTROLES --- */
 .body-control-group {
   background-color: rgba(255, 255, 255, 0.05);
   border-radius: 5px;
@@ -122,7 +117,7 @@ body {
 }
 
 .body-control-group button {
-  margin-bottom: 8px; /* Espaçamento entre o botão e o seletor */
+  margin-bottom: 8px;
 }
 
 .body-control-group label {
@@ -141,7 +136,6 @@ body {
   border-radius: 4px;
 }
 
-/* --- NOVAS REGRAS PARA O DISPLAY DE TEMPO --- */
 .time-display {
   padding-bottom: 10px;
   margin-bottom: 10px;
@@ -157,6 +151,6 @@ body {
 
 .time-display span {
   font-weight: bold;
-  font-family: monospace; /* Fonte monoespaçada para os números não "pularem" */
+  font-family: monospace;
   font-size: 15px;
 }

@@ -1,15 +1,10 @@
-/**
- * Módulo para projetar sombras "falsas" usando Raycasting e Decalques.
- */
-
-// Lista de corpos que podem receber sombras
 const state = [];
 let annularDecalMaterial;
 let totalDecalMaterial;
 
 const createDecalMaterial = (name, scene, alphaValue) => {
   const decalMaterial = new BABYLON.StandardMaterial(name, scene);
-  const size = 256; // Diminuí o tamanho da textura para ser mais leve
+  const size = 256;
   const dynamicTexture = new BABYLON.DynamicTexture(
     `decal-${name}`,
     size,
@@ -35,33 +30,22 @@ const createDecalMaterial = (name, scene, alphaValue) => {
   decalMaterial.alphaMode = BABYLON.Engine.ALPHA_BLEND;
   decalMaterial.zOffset = -2;
 
-  // A transparência agora é controlada pelo parâmetro
   decalMaterial.alpha = alphaValue;
 
   return decalMaterial;
 };
 
-// Esta função de inicialização agora cria NOSSOS DOIS materiais.
 export const initializeEclipseMaterials = (scene) => {
   annularDecalMaterial = createDecalMaterial("annular-decal-mat", scene, 0.4);
   totalDecalMaterial = createDecalMaterial("total-decal-mat", scene, 0.8);
 };
 
-/**
- * Verifica se um objeto igual a idObj já está presente no array state.
- * Se encontrar um objeto com occluder e receiver iguais, mas diferente nos outros campos,
- * remove o decal antigo chamando dispose e retorna false.
- * @param {Array<object>} state
- * @param {object} idObj
- * @returns {boolean}
- */
 function hasIdObj(state, idObj) {
   for (const obj of state) {
-    // Se todos os campos são iguais, retorna true
     if (Object.keys(idObj).every((key) => obj[key] === idObj[key])) {
       return true;
     }
-    // Se apenas occluder e receiver são iguais, remove o decal antigo
+
     if (
       obj.occluder === idObj.occluder &&
       obj.receiver === idObj.receiver &&
@@ -69,7 +53,6 @@ function hasIdObj(state, idObj) {
       typeof obj.decal.dispose === "function"
     ) {
       obj.decal.dispose();
-      // Remove o objeto antigo do state
       const idx = state.indexOf(obj);
       if (idx !== -1) state.splice(idx, 1);
       return false;
@@ -78,13 +61,6 @@ function hasIdObj(state, idObj) {
   return false;
 }
 
-/**
- * Projeta uma sombra de um corpo para outro.
- * @param {BABYLON.AbstractMesh} occluderMesh - O corpo que está na frente (ex: Vezmar)
- * @param {BABYLON.Scene} scene - A cena
- * @param {object} config - A configuração da simulação
- * @returns {BABYLON.Mesh | null} O decalque criado, ou nulo se não houver colisão.
- */
 export const projectShadow = (occluderPivot, scene, config) => {
   if (!occluderPivot) return null;
 
@@ -93,16 +69,13 @@ export const projectShadow = (occluderPivot, scene, config) => {
 
   const occluderConfig = occluderPivot.metadata;
 
-  // Se este corpo não tem configuração de sombra, não faz nada
   if (!occluderConfig.shadowCasting) return null;
 
-  // 1. O raio sai do corpo que causa a sombra, na direção oposta à estrela
   const origin = occluderPivot.getAbsolutePosition();
   const direction = origin.subtract(star.getAbsolutePosition()).normalize();
   occluderPivot.metadata.backwardRay.origin = origin;
   occluderPivot.metadata.backwardRay.direction = direction;
 
-  // Predicado para o raio só atingir os corpos celestes
   const predicate = (mesh) => {
     const isBody = mesh.parent?.metadata?.kind === "body";
 
@@ -116,7 +89,6 @@ export const projectShadow = (occluderPivot, scene, config) => {
     predicate
   );
 
-  // 2. Se o raio atingiu um corpo válido
   if (pickInfo.hit) {
     const receiverMesh = pickInfo.pickedMesh;
     const receiverName = receiverMesh.name;
@@ -137,7 +109,6 @@ export const projectShadow = (occluderPivot, scene, config) => {
     const shadowSizeKm = occluderConfig.shadowCasting[receiverName].diameter;
     if (!shadowSizeKm) return null;
 
-    // --- AJUSTE 1: AUMENTAR A PROFUNDIDADE DA PROJEÇÃO ---
     const decalWidthHeight = shadowSizeKm * config.scale;
     const decalSize = new BABYLON.Vector3(
       decalWidthHeight,
@@ -145,7 +116,6 @@ export const projectShadow = (occluderPivot, scene, config) => {
       decalWidthHeight * 8
     );
 
-    // 4. Cria o decalque de sombra na superfície do corpo atingido
     const decal = BABYLON.MeshBuilder.CreateDecal("decal", receiverMesh, {
       position: pickInfo.pickedPoint,
       normal: occluderPivot.metadata.backwardRay.direction,
@@ -153,7 +123,6 @@ export const projectShadow = (occluderPivot, scene, config) => {
       angle: Math.random() * Math.PI * 2,
     });
 
-    // --- AJUSTE 2: GARANTIR A VISIBILIDADE ---
     decal.alwaysSelectAsActiveMesh = true;
 
     if (occluderConfig.shadowCasting[receiverName].type === "annular") {
@@ -166,7 +135,9 @@ export const projectShadow = (occluderPivot, scene, config) => {
     }
 
     console.log(
-      `Sombra projetada de ${occluderPivot.name} para ${receiverName})`
+      `Sombra projetada de ${
+        occluderPivot.getChildren()[0].name
+      } para ${receiverName}`
     );
 
     state.push({ ...id, decal });

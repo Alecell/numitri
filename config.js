@@ -1,9 +1,6 @@
-/**
- * Objeto de Configuração Central
- */
 export const simulationConfig = {
   scale: 1e-6,
-  timeScale: 1, // 1 segundo real equivale a 1 dia narímico de simulação
+  timeScale: 1,
 
   star: {
     name: "Anavon",
@@ -29,20 +26,20 @@ export const simulationConfig = {
         inclination: 8,
       },
       mutualOrbit: {
-        period: 365, // dias narímicos
+        period: 365,
       },
       components: [
         {
           name: "Narym",
           kind: "body",
           deepNebula: 53.1,
-          radius: 12250, // km
-          axialTilt: 29, // graus
-          rotationPeriod: 1, // 1 dia narímico
+          radius: 12250,
+          axialTilt: 29,
+          rotationPeriod: 1,
           precessionPeriod: 21049,
-          orbitRadius: 5490000, // km (distância ao baricentro)
+          orbitRadius: 5490000,
           debugFeatures: {
-            polePins: true, // Habilita a criação dos pinos para este corpo
+            polePins: true,
           },
           visual: {
             defaultMap: "Visão Real",
@@ -70,12 +67,12 @@ export const simulationConfig = {
               name: "Tharela",
               kind: "body",
               deepNebula: 53.4,
-              radius: 2200, // km
-              rotationPeriod: 4, // Rotação síncrona com a órbita
+              radius: 2200,
+              rotationPeriod: 4,
               orbit: {
-                period: 4, // dias narímicos
-                semiMajorAxis: 234000, // km
-                inclination: 12, // graus
+                period: 4,
+                semiMajorAxis: 234000,
+                inclination: 12,
                 eccentricity: 0,
               },
               shadowCasting: {
@@ -98,18 +95,18 @@ export const simulationConfig = {
                   "Visão Real": "./tharela.png",
                   Biomas: "URL_DA_TEXTURA_DE_BIOMAS_DE_THARELA",
                 },
-              }, // Placeholder: alaranjado-dourado
+              },
             },
             {
               name: "Ciren",
               kind: "body",
               deepNebula: 53.8,
-              radius: 1400, // km
-              rotationPeriod: 19, // Rotação síncrona com a órbita
+              radius: 1400,
+              rotationPeriod: 19,
               orbit: {
-                period: 19, // dias narímicos
-                semiMajorAxis: 656000, // km
-                inclination: 5, // graus
+                period: 19,
+                semiMajorAxis: 656000,
+                inclination: 5,
                 eccentricity: 0,
               },
               shadowCasting: {
@@ -132,7 +129,7 @@ export const simulationConfig = {
                   "Visão Real": "./ciren.png",
                   Biomas: "URL_DA_TEXTURA_DE_BIOMAS_DE_CIREN",
                 },
-              }, // Placeholder: branco-azulado pálido
+              },
             },
           ],
         },
@@ -140,10 +137,10 @@ export const simulationConfig = {
           name: "Vezmar",
           kind: "body",
           deepNebula: 45.7,
-          radius: 129150, // km
-          axialTilt: 4, // Não especificado, assumindo 0
-          rotationPeriod: 11.3 / 30, // 0.3766 dias narímicos
-          orbitRadius: 1910000, // km (distância ao baricentro)
+          radius: 129150,
+          axialTilt: 4,
+          rotationPeriod: 11.3 / 30,
+          orbitRadius: 1910000,
           shadowCasting: {
             Narym: {
               type: "total",
@@ -164,7 +161,7 @@ export const simulationConfig = {
               "Visão Real": "./vezmar.png",
               Biomas: "URL_DA_TEXTURA_DE_BIOMAS_DE_VEZMAR",
             },
-          }, // Placeholder: âmbar-creme gasoso
+          },
         },
       ],
     },
@@ -677,26 +674,23 @@ export const nebulaConfig = {
     },
   ],
 
-  // Configurações do "tubo" que forma o rio
   tubeSettings: {
-    radius: 30_000_000, // Raio do tubo em km
-    tessellation: 10, // Suavidade do tubo (mais = mais suave)
+    radius: 30_000_000,
+    tessellation: 10,
   },
 
-  // Configurações do material luminoso e gasoso
   material: {
-    // Use uma textura de nuvem/fumaça aqui. Procure por "seamless smoke texture png"
     textureUrl: "./smoke.png",
-    emissiveColor: "#00CED1", // Um tom de roxo para a emissão de luz
-    alpha: 0.15, // Transparência geral da nebulosa
+    emissiveColor: "#00CED1",
+    alpha: 0.15,
   },
 
   fog: {
-    color: "#006c6d", // Cor da névoa quando Narym está dentro do Véu
-    density: 0.01, // Densidade da névoa
+    color: "#006c6d",
+    density: 0.01,
   },
 
   debug: {
-    showPath: false, // Mude para true para ver a linha central do tubo
+    showPath: false,
   },
 };

@@ -163,12 +163,7 @@ const updateNebulaDecay = (pivot) => {
   }
 };
 
-const applyRays = (
-  pivot,
-  componentData,
-  simulationConfig,
-  systemInclinationMatrix
-) => {
+const applyRays = (pivot, simulationConfig) => {
   if (pivot.metadata.forwardRay) {
     const starPosition = BABYLON.Vector3.Zero();
     const worldCenter = pivot.getAbsolutePosition();
@@ -277,12 +272,7 @@ const updateSystemState = (time) => {
     planetPivot.rotationQuaternion = finalCombinedRotation;
 
     // ATUALIZAÇÃO DE EFEITOS (para este planeta)
-    applyRays(
-      planetPivot,
-      componentData,
-      simulationConfig,
-      systemInclinationMatrix
-    );
+    applyRays(planetPivot, simulationConfig);
     updateNebulaDecay(planetPivot);
 
     // ATUALIZAÇÃO DAS LUAS
@@ -318,12 +308,7 @@ const updateSystemState = (time) => {
         const orbitLine = scene.getMeshByName(`${moonData.name}-orbit-line`);
         if (orbitLine) orbitLine.position = planetPivot.getAbsolutePosition();
 
-        applyRays(
-          moonPivot,
-          moonData,
-          simulationConfig,
-          systemInclinationMatrix
-        );
+        applyRays(moonPivot, simulationConfig);
         updateNebulaDecay(moonPivot);
       });
     }
@@ -349,19 +334,28 @@ const updateSystemState = (time) => {
   }
 };
 
-const handleJumpToTime = ({ year, day, hour }) => {
+const handleJumpToTime = ({ year, day, hour, minute }) => {
+  console.log(
+    `Recebido pedido de salto para Ano: ${year}, Dia: ${day}, Hora: ${hour}, Minuto: ${minute}`
+  );
+
   const binarySystem = simulationConfig.planets.find(
     (p) => p.type === "binaryPair"
   );
   if (!binarySystem) return;
 
   const yearLengthInDays = binarySystem.orbit.period;
+
+  const timeFromYears = year * yearLengthInDays;
+  const timeFromDays = day;
+  const timeFromHours = hour / NARIM_HOURS_IN_DAY;
+  const timeFromMinutes = minute / (NARIM_HOURS_IN_DAY * 60);
+
   const newSimulationTime =
-    year * yearLengthInDays + day + hour / NARIM_HOURS_IN_DAY;
+    timeFromYears + timeFromDays + timeFromHours + timeFromMinutes;
 
   simulationTime = newSimulationTime < 0 ? 0 : newSimulationTime;
 
-  // CORREÇÃO: Chama a função mestra para forçar a atualização da cena.
   updateSystemState(simulationTime);
   updateTimeDisplay(simulationTime, yearLengthInDays);
 };

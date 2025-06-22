@@ -1,17 +1,5 @@
-/**
- * Módulo de Mecânica Orbital
- * Contém as funções matemáticas para calcular posições em órbitas elípticas.
- */
-
-/**
- * Resolve a Equação de Kepler M = E - e*sin(E) para encontrar E.
- * Usa o método iterativo de Newton-Raphson.
- * @param {number} e - Excentricidade da órbita.
- * @param {number} M - Anomalia Média em radianos.
- * @returns {number} A Anomalia Excêntrica (E) em radianos.
- */
 const solveKeplerEquation = (e, M) => {
-  let E = M; // Chute inicial
+  let E = M;
   const maxIterations = 10;
   const tolerance = 1e-6;
 
@@ -25,11 +13,6 @@ const solveKeplerEquation = (e, M) => {
   return E;
 };
 
-/**
- * Calcula a posição 2D de um corpo em sua órbita elíptica.
- * A responsabilidade de aplicar a inclinação foi movida para o chamador.
- * @returns {BABYLON.Vector3} A posição 2D (x, 0, z) relativa ao corpo central.
- */
 export const calculateEllipticalOrbit = (orbitData, scale, simulationTime) => {
   const a = orbitData.semiMajorAxis * scale;
   const e = orbitData.eccentricity;
@@ -58,18 +41,10 @@ export const calculateEllipticalOrbit = (orbitData, scale, simulationTime) => {
   return new BABYLON.Vector3(r * Math.cos(v), 0, r * Math.sin(v));
 };
 
-/**
- * Gera um array de pontos Vector3 que descrevem uma trajetória orbital.
- * @param {object} orbitData - Objeto com os dados da órbita.
- * @param {number} scale - O fator de escala da simulação.
- * @param {number} segments - O número de pontos para gerar a linha.
- * @returns {BABYLON.Vector3[]} Um array de pontos para a linha.
- */
 export const getOrbitPathPoints = (orbitData, scale, segments = 360) => {
   const points = [];
   for (let i = 0; i <= segments; i++) {
     const simulationTime = (orbitData.period / segments) * i;
-    // Usamos a mesma função que move os planetas para garantir que o trilho seja perfeito
     const point = calculateEllipticalOrbit(orbitData, scale, simulationTime);
     points.push(point);
   }
