@@ -506,6 +506,7 @@ const createScene = () => {
   povCamera.minZ = 0.1;
   povCamera.maxZ = 10000;
   povCamera.setEnabled(false);
+  povCamera.fov = orbitalCamera.fov;
 
   inspectionCamera = new BABYLON.ArcRotateCamera(
     "inspectionCamera",
