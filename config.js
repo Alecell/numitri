@@ -57,7 +57,7 @@ export const simulationConfig = {
         },
         eccentricityVariation: {
           min: 0.004,
-          max: 0.9,
+          max: 0.07,
           period: 145000,
         },
         inclinationVariation: {
