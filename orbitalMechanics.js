@@ -50,3 +50,21 @@ export const getOrbitPathPoints = (orbitData, scale, segments = 360) => {
   }
   return points;
 };
+
+export const getCyclicValue = (
+  cycleData,
+  simulationTimeInDays,
+  yearLengthInDays
+) => {
+  const { min, max, period } = cycleData;
+  const periodInDays = period * yearLengthInDays;
+
+  const amplitude = (max - min) / 2;
+  const average = (max + min) / 2;
+  const angularFrequency = (2 * Math.PI) / periodInDays;
+
+  const currentValue =
+    average + amplitude * Math.sin(angularFrequency * simulationTimeInDays);
+
+  return currentValue;
+};

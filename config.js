@@ -28,7 +28,10 @@ export const simulationConfig = {
   star: {
     name: "Anavon",
     type: "F5 V",
-    radius: 905000,
+    kind: "body",
+    radius: 915000,
+    axialTilt: 0,
+    rotationPeriod: 25,
     visual: {
       defaultMap: "Visão Real",
       maps: {
@@ -43,13 +46,28 @@ export const simulationConfig = {
       name: "Narym-Vezmar System",
       type: "binaryPair",
       orbit: {
-        period: 730,
-        semiMajorAxis: 308000000,
-        eccentricity: 0.0502,
+        period: 754,
+        semiMajorAxis: 315500000,
+        eccentricity: 0.05,
         inclination: 8,
       },
+      longTermCycles: {
+        apsidalPrecession: {
+          period: 530000,
+        },
+        eccentricityVariation: {
+          min: 0.004,
+          max: 0.9,
+          period: 145000,
+        },
+        inclinationVariation: {
+          min: 5.3,
+          max: 8.6,
+          period: 9000000,
+        },
+      },
       mutualOrbit: {
-        period: 365,
+        period: 377,
       },
       components: [
         {
@@ -60,7 +78,14 @@ export const simulationConfig = {
           axialTilt: 29,
           rotationPeriod: 1,
           precessionPeriod: 21049,
-          orbitRadius: 5490000,
+          orbitRadius: 5613000,
+          longTermCycles: {
+            obliquityVariation: {
+              min: 27.3,
+              max: 36.2,
+              period: 76000,
+            },
+          },
           debugFeatures: {
             polePins: true,
           },
@@ -163,7 +188,7 @@ export const simulationConfig = {
           radius: 129150,
           axialTilt: 4,
           rotationPeriod: 11.3 / 30,
-          orbitRadius: 1910000,
+          orbitRadius: 1947000,
           shadowCasting: {
             Narym: {
               type: "total",

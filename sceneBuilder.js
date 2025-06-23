@@ -1,6 +1,28 @@
 import { getOrbitPathPoints } from "./orbitalMechanics.js";
 import { simulationConfig, nebulaConfig } from "./config.js";
 
+export const updateOrbitLine = (lineName, newOrbitData, scene) => {
+  const line = scene.getMeshByName(lineName);
+  if (!line) return;
+
+  // Gera os novos pontos com os dados atualizados
+  const newPoints = getOrbitPathPoints(newOrbitData, simulationConfig.scale);
+
+  // Aplica a inclinação do sistema
+  const systemInclinationMatrix = BABYLON.Matrix.RotationX(
+    BABYLON.Tools.ToRadians(newOrbitData.inclination || 0)
+  );
+  const finalPath = newPoints.map((p) =>
+    BABYLON.Vector3.TransformCoordinates(p, systemInclinationMatrix)
+  );
+
+  // Atualiza a malha existente com os novos pontos
+  BABYLON.MeshBuilder.CreateLines(lineName, {
+    points: finalPath,
+    instance: line,
+  });
+};
+
 const setupMaterial = (mesh, visualConfig, config) => {
   const material = new BABYLON.StandardMaterial(
     `${mesh.name}-material`,
@@ -196,7 +218,7 @@ export const createPlanetarySystem = (scene, config) => {
       );
       const barycenterLine = BABYLON.MeshBuilder.CreateLines(
         `${bodyData.name}-orbit-line`,
-        { points: finalBarycenterPath },
+        { points: finalBarycenterPath, updatable: true },
         scene
       );
       barycenterLine.color = new BABYLON.Color3(0.7, 0.7, 0.7);

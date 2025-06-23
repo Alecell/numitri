@@ -1,11 +1,14 @@
 import { simulationConfig, nebulaConfig } from "./config.js";
-import { createPlanetarySystem } from "./sceneBuilder.js";
+import { createPlanetarySystem, updateOrbitLine } from "./sceneBuilder.js";
 import {
   initializeUI,
   updateTimeControlsUI,
   updateTimeDisplay,
 } from "./uiController.js";
-import { calculateEllipticalOrbit } from "./orbitalMechanics.js";
+import {
+  calculateEllipticalOrbit,
+  getCyclicValue,
+} from "./orbitalMechanics.js";
 import {
   initializeEclipseMaterials,
   projectShadow,
@@ -19,10 +22,10 @@ let isPovModeActive = false;
 let isNarymInNebula = false;
 let displayRays = false;
 let isInInspectMode = false;
-let inspectedTarget = null;
 let isPaused = false;
 let lastTimeScale = simulationConfig.timeScale;
 let simulationTime = 0;
+let timeJustJumped = true;
 
 const NARIM_HOURS_IN_DAY = 30.0;
 const OCCLUDING_BODIES = ["Narym", "Vezmar", "Tharela", "Ciren"];
@@ -68,7 +71,6 @@ const enterInspectMode = () => {
   }
 
   isInInspectMode = true;
-  inspectedTarget = targetMesh;
 
   if (!isPaused) {
     lastTimeScale = simulationConfig.timeScale;
@@ -102,7 +104,6 @@ const exitInspectMode = (detail) => {
   document.getElementById("light-dark-side-toggle").checked = false;
 
   isInInspectMode = false;
-  inspectedTarget = null;
 
   simulationConfig.timeScale = lastTimeScale;
   isPaused = false;
@@ -199,22 +200,57 @@ const updateSystemState = (time) => {
   );
   if (!binarySystem) return;
 
-  // --- POSIÇÃO E LÓGICA DO SISTEMA ---
-  const systemInclination = binarySystem.orbit.inclination || 0;
+  const yearLength = binarySystem.orbit.period;
+  let currentEccentricity = binarySystem.orbit.eccentricity;
+
+  // --- LÓGICA DA EXCENTRICIDADE DINÂMICA ---
+  console.log("aqui?", binarySystem?.longTermCycles);
+  if (binarySystem?.longTermCycles?.eccentricityVariation) {
+    currentEccentricity = getCyclicValue(
+      binarySystem.longTermCycles.eccentricityVariation,
+      time,
+      yearLength
+    );
+  }
+  const currentOrbitData = {
+    ...binarySystem.orbit,
+    eccentricity: currentEccentricity,
+  };
+
+  // --- LÓGICA DE ATUALIZAÇÃO DOS TRILHOS ---
+  const line = scene.getMeshByName(`${binarySystem.name}-orbit-line`);
+  if (line) {
+    console.log(
+      "Redesenhando trilho orbital com nova excentricidade:",
+      currentEccentricity.toFixed(4)
+    );
+    updateOrbitLine(line.name, currentOrbitData, scene);
+  }
+
   const systemInclinationMatrix = BABYLON.Matrix.RotationX(
-    BABYLON.Tools.ToRadians(systemInclination)
+    BABYLON.Tools.ToRadians(currentOrbitData.inclination || 0)
   );
   const barycenterFlatPos = calculateEllipticalOrbit(
-    binarySystem.orbit,
+    currentOrbitData,
     simulationConfig.scale,
-    time
+    simulationTime
   );
   const barycenterTiltedPos = BABYLON.Vector3.TransformCoordinates(
     barycenterFlatPos,
     systemInclinationMatrix
   );
+
+  // --- AJUSTE PARA GARANTIR A POSIÇÃO CORRETA DO TRILHO PRINCIPAL ---
+  const barycenterOrbitLine = scene.getMeshByName(
+    `${binarySystem.name}-orbit-line`
+  );
+  if (barycenterOrbitLine) {
+    // Garantimos que a órbita principal esteja sempre centrada na estrela (origem).
+    barycenterOrbitLine.position = BABYLON.Vector3.Zero();
+  }
+
   const mutualOrbitPeriod = binarySystem.mutualOrbit.period;
-  const mutualAngle = ((2 * Math.PI) / mutualOrbitPeriod) * time;
+  const mutualAngle = ((2 * Math.PI) / mutualOrbitPeriod) * simulationTime;
 
   // --- ATUALIZAÇÃO DOS COMPONENTES (Planetas e Luas) ---
   binarySystem.components.forEach((componentData, index) => {
@@ -357,7 +393,7 @@ const handleJumpToTime = ({ year, day, hour, minute }) => {
   simulationTime = newSimulationTime < 0 ? 0 : newSimulationTime;
 
   updateSystemState(simulationTime);
-  updateTimeDisplay(simulationTime, yearLengthInDays);
+  updateTimeDisplay(simulationTime, binarySystem.orbit.period);
 };
 
 // =======================================================
