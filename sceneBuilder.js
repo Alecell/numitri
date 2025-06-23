@@ -240,16 +240,19 @@ export const createPlanetarySystem = (scene, config) => {
             )
           );
         }
-        const finalMutualPath = mutualOrbitPoints.map((p) =>
-          BABYLON.Vector3.TransformCoordinates(p, systemInclinationMatrix)
-        );
+        // --- ALTERAÇÃO AQUI ---
+        // A linha agora é criada como um círculo plano, sem a inclinação do sistema aplicada.
+        // A inclinação será aplicada dinamicamente em main.js através da rotação.
+        // REMOVIDO: const finalMutualPath = mutualOrbitPoints.map((p) => BABYLON.Vector3.TransformCoordinates(p, systemInclinationMatrix));
         const mutualLine = BABYLON.MeshBuilder.CreateLines(
           `${componentData.name}-orbit-line`,
-          { points: finalMutualPath },
+          { points: mutualOrbitPoints }, // Usando os pontos planos diretamente
           scene
         );
         mutualLine.color = new BABYLON.Color3(0.4, 0.4, 0.4);
         mutualLine.isVisible = false;
+        // ADICIONADO: Inicializa o quaternion para que possamos rotacioná-lo depois.
+        mutualLine.rotationQuaternion = new BABYLON.Quaternion();
       });
     }
   });

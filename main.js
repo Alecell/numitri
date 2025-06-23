@@ -201,10 +201,11 @@ const updateSystemState = (time) => {
   if (!binarySystem) return;
 
   const yearLength = binarySystem.orbit.period;
-  let currentEccentricity = binarySystem.orbit.eccentricity;
 
-  // --- LÓGICA DA EXCENTRICIDADE DINÂMICA ---
-  console.log("aqui?", binarySystem?.longTermCycles);
+  // --- LÓGICA DOS CICLOS DE LONGO PRAZO ---
+  let currentEccentricity = binarySystem.orbit.eccentricity;
+  let currentInclination = binarySystem.orbit.inclination;
+
   if (binarySystem?.longTermCycles?.eccentricityVariation) {
     currentEccentricity = getCyclicValue(
       binarySystem.longTermCycles.eccentricityVariation,
@@ -212,24 +213,35 @@ const updateSystemState = (time) => {
       yearLength
     );
   }
+  if (binarySystem?.longTermCycles?.inclinationVariation) {
+    currentInclination = getCyclicValue(
+      binarySystem.longTermCycles.inclinationVariation,
+      time,
+      yearLength
+    );
+  }
+
   const currentOrbitData = {
     ...binarySystem.orbit,
     eccentricity: currentEccentricity,
+    inclination: currentInclination,
   };
 
-  // --- LÓGICA DE ATUALIZAÇÃO DOS TRILHOS ---
   const line = scene.getMeshByName(`${binarySystem.name}-orbit-line`);
   if (line) {
-    console.log(
-      "Redesenhando trilho orbital com nova excentricidade:",
-      currentEccentricity.toFixed(4)
-    );
     updateOrbitLine(line.name, currentOrbitData, scene);
   }
 
   const systemInclinationMatrix = BABYLON.Matrix.RotationX(
     BABYLON.Tools.ToRadians(currentOrbitData.inclination || 0)
   );
+  // --- ALTERAÇÃO AQUI ---
+  // ADICIONADO: Criamos um quaternion a partir da matriz de inclinação.
+  // Este quaternion será usado para rotacionar as linhas orbitais de Narym e Vezmar.
+  const systemInclinationQuaternion = BABYLON.Quaternion.FromRotationMatrix(
+    systemInclinationMatrix
+  );
+
   const barycenterFlatPos = calculateEllipticalOrbit(
     currentOrbitData,
     simulationConfig.scale,
@@ -240,26 +252,22 @@ const updateSystemState = (time) => {
     systemInclinationMatrix
   );
 
-  // --- AJUSTE PARA GARANTIR A POSIÇÃO CORRETA DO TRILHO PRINCIPAL ---
   const barycenterOrbitLine = scene.getMeshByName(
     `${binarySystem.name}-orbit-line`
   );
   if (barycenterOrbitLine) {
-    // Garantimos que a órbita principal esteja sempre centrada na estrela (origem).
     barycenterOrbitLine.position = BABYLON.Vector3.Zero();
   }
 
   const mutualOrbitPeriod = binarySystem.mutualOrbit.period;
   const mutualAngle = ((2 * Math.PI) / mutualOrbitPeriod) * simulationTime;
 
-  // --- ATUALIZAÇÃO DOS COMPONENTES (Planetas e Luas) ---
   binarySystem.components.forEach((componentData, index) => {
     const planetPivot = scene.getTransformNodeByName(
       `${componentData.name}-pivot`
     );
     if (!planetPivot) return;
 
-    // Posição Orbital
     const orbitRadius = componentData.orbitRadius * simulationConfig.scale;
     const angleOffset = index === 0 ? 0 : Math.PI;
     const mutualOffsetFlat = new BABYLON.Vector3(
@@ -276,9 +284,14 @@ const updateSystemState = (time) => {
     const componentOrbitLine = scene.getMeshByName(
       `${componentData.name}-orbit-line`
     );
-    if (componentOrbitLine) componentOrbitLine.position = barycenterTiltedPos;
+    // --- ALTERAÇÃO AQUI ---
+    // Agora, além de mover a linha, nós também a rotacionamos.
+    if (componentOrbitLine) {
+      componentOrbitLine.position = barycenterTiltedPos;
+      componentOrbitLine.rotationQuaternion = systemInclinationQuaternion;
+    }
 
-    // ROTAÇÃO E PRECESSÃO (LÓGICA ABSOLUTA)
+    // ROTAÇÃO, PRECESSÃO E VARIAÇÃO DE OBLIQUIDADE
     const rotationSpeed = (2 * Math.PI) / componentData.rotationPeriod;
     const totalRotationAngle = rotationSpeed * time;
     const dailySpinQuat = BABYLON.Quaternion.RotationAxis(
@@ -287,9 +300,19 @@ const updateSystemState = (time) => {
     );
 
     let finalCombinedRotation;
-    const baseTiltQuat = planetPivot.metadata.baseTiltQuaternion;
-    if (componentData.precessionPeriod && baseTiltQuat) {
-      const yearLength = binarySystem.orbit.period;
+    let currentTiltQuat = planetPivot.metadata.baseTiltQuaternion;
+
+    if (componentData.longTermCycles?.obliquityVariation) {
+      const obliquityCycle = componentData.longTermCycles.obliquityVariation;
+      const currentObliquity = getCyclicValue(obliquityCycle, time, yearLength);
+
+      currentTiltQuat = BABYLON.Quaternion.RotationAxis(
+        new BABYLON.Vector3(0, 0, 1),
+        BABYLON.Tools.ToRadians(currentObliquity)
+      );
+    }
+
+    if (componentData.precessionPeriod && currentTiltQuat) {
       const precessionPeriodInDays =
         componentData.precessionPeriod * yearLength;
       const precessionSpeed = (2 * Math.PI) / precessionPeriodInDays;
@@ -298,10 +321,10 @@ const updateSystemState = (time) => {
         BABYLON.Axis.Y,
         totalPrecessionAngle
       );
-      const tiltedAndPrecessedQuat = precessionQuat.multiply(baseTiltQuat);
+      const tiltedAndPrecessedQuat = precessionQuat.multiply(currentTiltQuat);
       finalCombinedRotation = tiltedAndPrecessedQuat.multiply(dailySpinQuat);
-    } else if (baseTiltQuat) {
-      finalCombinedRotation = baseTiltQuat.multiply(dailySpinQuat);
+    } else if (currentTiltQuat) {
+      finalCombinedRotation = currentTiltQuat.multiply(dailySpinQuat);
     } else {
       finalCombinedRotation = dailySpinQuat;
     }
