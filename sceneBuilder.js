@@ -5,18 +5,25 @@ export const updateOrbitLine = (lineName, newOrbitData, scene) => {
   const line = scene.getMeshByName(lineName);
   if (!line) return;
 
-  // Gera os novos pontos com os dados atualizados
   const newPoints = getOrbitPathPoints(newOrbitData, simulationConfig.scale);
 
-  // Aplica a inclinação do sistema
-  const systemInclinationMatrix = BABYLON.Matrix.RotationX(
-    BABYLON.Tools.ToRadians(newOrbitData.inclination || 0)
-  );
-  const finalPath = newPoints.map((p) =>
-    BABYLON.Vector3.TransformCoordinates(p, systemInclinationMatrix)
-  );
+  // --- ALTERAÇÃO AQUI: Combina inclinação e precessão nodal ---
+  const inclination = newOrbitData.inclination || 0;
+  const nodalPrecessionAngle = newOrbitData.nodalPrecessionAngle || 0;
 
-  // Atualiza a malha existente com os novos pontos
+  const inclinationMatrix = BABYLON.Matrix.RotationX(
+    BABYLON.Tools.ToRadians(inclination)
+  );
+  const nodalPrecessionMatrix = BABYLON.Matrix.RotationY(nodalPrecessionAngle);
+
+  // A matriz combinada orienta o plano orbital corretamente
+  const combinedMatrix = inclinationMatrix.multiply(nodalPrecessionMatrix);
+
+  const finalPath = newPoints.map((p) =>
+    BABYLON.Vector3.TransformCoordinates(p, combinedMatrix)
+  );
+  // --- FIM DA ALTERAÇÃO ---
+
   BABYLON.MeshBuilder.CreateLines(lineName, {
     points: finalPath,
     instance: line,
@@ -182,20 +189,18 @@ export const createPlanetarySystem = (scene, config) => {
 
     if (bodyData.orbit && !bodyData.components) {
       const orbitPath = getOrbitPathPoints(bodyData.orbit, config.scale);
-      const orbitInclination = bodyData.orbit.inclination || 0;
-      const inclinationMatrix = BABYLON.Matrix.RotationX(
-        BABYLON.Tools.ToRadians(orbitInclination)
-      );
-      const finalPath = orbitPath.map((p) =>
-        BABYLON.Vector3.TransformCoordinates(p, inclinationMatrix)
-      );
+
+      // --- ALTERAÇÃO AQUI: Linhas de órbita das luas agora são criadas planas ---
+      // A orientação (inclinação + precessão) será aplicada dinamicamente em main.js
+      // Isso afeta Tharela e Ciren, deixando-as prontas para a rotação dinâmica.
       const orbitLine = BABYLON.MeshBuilder.CreateLines(
         `${bodyData.name}-orbit-line`,
-        { points: finalPath },
+        { points: orbitPath }, // Usando o caminho plano diretamente
         scene
       );
       orbitLine.color = new BABYLON.Color3(0.5, 0.5, 0.5);
       orbitLine.isVisible = false;
+      orbitLine.rotationQuaternion = new BABYLON.Quaternion();
     }
 
     if (bodyData.moons) {

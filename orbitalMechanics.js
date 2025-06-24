@@ -13,12 +13,19 @@ const solveKeplerEquation = (e, M) => {
   return E;
 };
 
-export const calculateEllipticalOrbit = (orbitData, scale, simulationTime) => {
+// --- ALTERAÇÃO AQUI: Adicionado o parâmetro precessionAngle ---
+export const calculateEllipticalOrbit = (
+  orbitData,
+  scale,
+  simulationTime,
+  precessionAngle = 0
+) => {
   const a = orbitData.semiMajorAxis * scale;
   const e = orbitData.eccentricity;
   const T = orbitData.period;
 
   if (e === 0) {
+    // Órbita circular (precessão não tem efeito visível na forma)
     const angle = ((2 * Math.PI) / T) * simulationTime;
     const radius = a;
     return new BABYLON.Vector3(
@@ -38,14 +45,36 @@ export const calculateEllipticalOrbit = (orbitData, scale, simulationTime) => {
     );
   const r = a * (1 - e * Math.cos(E));
 
-  return new BABYLON.Vector3(r * Math.cos(v), 0, r * Math.sin(v));
+  // --- ALTERAÇÃO AQUI: Aplica a rotação da precessão ---
+  const x = r * Math.cos(v);
+  const z = r * Math.sin(v);
+
+  // Se houver um ângulo de precessão, rotaciona o ponto no plano XZ
+  if (precessionAngle !== 0) {
+    const cosP = Math.cos(precessionAngle);
+    const sinP = Math.sin(precessionAngle);
+    const rotatedX = x * cosP - z * sinP;
+    const rotatedZ = x * sinP + z * cosP;
+    return new BABYLON.Vector3(rotatedX, 0, rotatedZ);
+  }
+
+  return new BABYLON.Vector3(x, 0, z);
 };
 
 export const getOrbitPathPoints = (orbitData, scale, segments = 360) => {
   const points = [];
+  // --- ALTERAÇÃO AQUI: Lê o ângulo de precessão dos dados da órbita ---
+  const precessionAngle = orbitData.precessionAngle || 0;
+
   for (let i = 0; i <= segments; i++) {
     const simulationTime = (orbitData.period / segments) * i;
-    const point = calculateEllipticalOrbit(orbitData, scale, simulationTime);
+    // Passa o ângulo para a função de cálculo
+    const point = calculateEllipticalOrbit(
+      orbitData,
+      scale,
+      simulationTime,
+      precessionAngle
+    );
     points.push(point);
   }
   return points;

@@ -50,6 +50,7 @@ export const simulationConfig = {
         semiMajorAxis: 315500000,
         eccentricity: 0.05,
         inclination: 8,
+        nodalPrecessionPeriod: 700000,
       },
       longTermCycles: {
         apsidalPrecession: {
@@ -122,6 +123,7 @@ export const simulationConfig = {
                 semiMajorAxis: 234000,
                 inclination: 12,
                 eccentricity: 0,
+                nodalPrecessionPeriod: 12,
               },
               shadowCasting: {
                 Narym: {
@@ -156,6 +158,7 @@ export const simulationConfig = {
                 semiMajorAxis: 656000,
                 inclination: 5,
                 eccentricity: 0,
+                nodalPrecessionPeriod: 80,
               },
               shadowCasting: {
                 Narym: {
