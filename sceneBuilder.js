@@ -7,7 +7,6 @@ export const updateOrbitLine = (lineName, newOrbitData, scene) => {
 
   const newPoints = getOrbitPathPoints(newOrbitData, simulationConfig.scale);
 
-  // --- ALTERAÇÃO AQUI: Combina inclinação e precessão nodal ---
   const inclination = newOrbitData.inclination || 0;
   const nodalPrecessionAngle = newOrbitData.nodalPrecessionAngle || 0;
 
@@ -16,13 +15,11 @@ export const updateOrbitLine = (lineName, newOrbitData, scene) => {
   );
   const nodalPrecessionMatrix = BABYLON.Matrix.RotationY(nodalPrecessionAngle);
 
-  // A matriz combinada orienta o plano orbital corretamente
   const combinedMatrix = inclinationMatrix.multiply(nodalPrecessionMatrix);
 
   const finalPath = newPoints.map((p) =>
     BABYLON.Vector3.TransformCoordinates(p, combinedMatrix)
   );
-  // --- FIM DA ALTERAÇÃO ---
 
   BABYLON.MeshBuilder.CreateLines(lineName, {
     points: finalPath,
@@ -36,7 +33,6 @@ const setupMaterial = (mesh, visualConfig, config) => {
     mesh.getScene()
   );
 
-  // --- LÓGICA AJUSTADA PARA A ESTRELA ---
   if (mesh.name === config.star.name) {
     material.emissiveColor = new BABYLON.Color3(1, 1, 0.9);
     material.disableLighting = true;
@@ -112,9 +108,37 @@ const createNebula = (scene, config) => {
 
 export const createPlanetarySystem = (scene, config) => {
   const createBodyWithPivot = (bodyData, parentPivot = null) => {
-    const pivot = new BABYLON.TransformNode(`${bodyData.name}-pivot`, scene);
-    pivot.metadata = { ...bodyData };
+    // ================== INÍCIO DA NOVA ARQUITETURA ==================
 
+    // 1. PIVÔ ORBITAL: Controla a POSIÇÃO do corpo no espaço. É a referência estável.
+    // O nome "-pivot" antigo é mantido para consistência inicial, mas sua função mudou.
+    const orbitalPivot = new BABYLON.TransformNode(
+      `${bodyData.name}-pivot`,
+      scene
+    );
+    orbitalPivot.metadata = { ...bodyData, nodeType: "orbital" };
+
+    if (parentPivot) {
+      orbitalPivot.parent = parentPivot;
+    }
+
+    // 2. PIVÔ DE ROTAÇÃO: Por padrão, é o mesmo que o pivô orbital.
+    let bodyRotationPivot = orbitalPivot;
+
+    // SE O CORPO TEM LUAS, criamos um pivô separado SÓ para a rotação axial.
+    if (bodyData.moons && bodyData.moons.length > 0) {
+      bodyRotationPivot = new BABYLON.TransformNode(
+        `${bodyData.name}-body-rotation-pivot`,
+        scene
+      );
+      bodyRotationPivot.parent = orbitalPivot; // Aninhado dentro do pivô orbital.
+      bodyRotationPivot.metadata = { nodeType: "body-rotation" };
+
+      // Armazenamos a referência para fácil acesso em main.js
+      orbitalPivot.metadata.bodyRotationPivot = bodyRotationPivot;
+    }
+
+    // 3. CRIAÇÃO DA MALHA E OUTROS ELEMENTOS VISUAIS
     if (bodyData.radius && bodyData.visual) {
       const mesh = BABYLON.MeshBuilder.CreateSphere(
         bodyData.name,
@@ -122,38 +146,38 @@ export const createPlanetarySystem = (scene, config) => {
         scene
       );
 
-      mesh.parent = pivot;
+      // A malha é SEMPRE filha do pivô de rotação para herdar inclinação e giro.
+      mesh.parent = bodyRotationPivot;
+      mesh.position = BABYLON.Vector3.Zero();
 
-      if (!pivot.metadata) {
-        pivot.metadata = {};
-      }
-
-      pivot.metadata.forwardRay = new BABYLON.Ray(
-        pivot.position,
+      // Metadados importantes como raios para sombras são colocados no pivô orbital, que define a posição mundial.
+      if (!orbitalPivot.metadata) orbitalPivot.metadata = {};
+      orbitalPivot.metadata.forwardRay = new BABYLON.Ray(
+        orbitalPivot.position,
         new BABYLON.Vector3(0, 0, 0),
         1000
       );
-      pivot.metadata.backwardRay = new BABYLON.Ray(
-        pivot.position,
+      orbitalPivot.metadata.backwardRay = new BABYLON.Ray(
+        orbitalPivot.position,
         new BABYLON.Vector3(0, 0, 0),
         1000
       );
-
-      pivot.metadata.raysHelper = [
-        new BABYLON.RayHelper(pivot.metadata.forwardRay),
-        new BABYLON.RayHelper(pivot.metadata.backwardRay),
+      orbitalPivot.metadata.raysHelper = [
+        new BABYLON.RayHelper(orbitalPivot.metadata.forwardRay),
+        new BABYLON.RayHelper(orbitalPivot.metadata.backwardRay),
       ];
 
       setupMaterial(mesh, bodyData.visual, config);
 
       if (bodyData.debugFeatures?.polePins) {
         const scaledRadius = bodyData.radius * config.scale;
+        // Pinos são visuais do corpo, então são filhos do pivô de rotação.
         const northPin = BABYLON.MeshBuilder.CreateCylinder(
           `${bodyData.name}-north-pin`,
           { height: scaledRadius * 0.5, diameter: scaledRadius * 0.05 },
           scene
         );
-        northPin.parent = pivot;
+        northPin.parent = bodyRotationPivot;
         northPin.position.y = scaledRadius;
         northPin.material = new BABYLON.StandardMaterial(
           "north-pin-mat",
@@ -166,7 +190,7 @@ export const createPlanetarySystem = (scene, config) => {
           { height: scaledRadius * 0.5, diameter: scaledRadius * 0.05 },
           scene
         );
-        equatorPin.parent = pivot;
+        equatorPin.parent = bodyRotationPivot;
         equatorPin.position.x = scaledRadius;
         equatorPin.rotation.z = Math.PI / 2;
         equatorPin.material = new BABYLON.StandardMaterial(
@@ -178,36 +202,46 @@ export const createPlanetarySystem = (scene, config) => {
       }
     }
 
-    pivot.rotationQuaternion = new BABYLON.Quaternion();
+    // 4. APLICAÇÃO DA INCLINAÇÃO AXIAL INICIAL
+    // A inclinação é SEMPRE aplicada ao pivô de rotação do corpo.
+    bodyRotationPivot.rotationQuaternion = new BABYLON.Quaternion();
     const tilt = bodyData.axialTilt || 0;
     const tiltQuaternion = BABYLON.Quaternion.RotationAxis(
       new BABYLON.Vector3(0, 0, 1),
       BABYLON.Tools.ToRadians(tilt)
     );
-    pivot.rotationQuaternion = tiltQuaternion;
-    pivot.metadata.baseTiltQuaternion = tiltQuaternion.clone();
+    bodyRotationPivot.rotationQuaternion = tiltQuaternion;
 
+    // Guardamos a inclinação base nos metadados do pivô orbital principal para acesso global.
+    orbitalPivot.metadata.baseTiltQuaternion = tiltQuaternion.clone();
+
+    // 5. CRIAÇÃO DA ÓRBITA (LÓGICA ESPECÍFICA PARA LUAS)
     if (bodyData.orbit && !bodyData.components) {
       const orbitPath = getOrbitPathPoints(bodyData.orbit, config.scale);
-
-      // --- ALTERAÇÃO AQUI: Linhas de órbita das luas agora são criadas planas ---
-      // A orientação (inclinação + precessão) será aplicada dinamicamente em main.js
-      // Isso afeta Tharela e Ciren, deixando-as prontas para a rotação dinâmica.
       const orbitLine = BABYLON.MeshBuilder.CreateLines(
         `${bodyData.name}-orbit-line`,
-        { points: orbitPath }, // Usando o caminho plano diretamente
+        { points: orbitPath },
         scene
       );
       orbitLine.color = new BABYLON.Color3(0.5, 0.5, 0.5);
       orbitLine.isVisible = false;
       orbitLine.rotationQuaternion = new BABYLON.Quaternion();
+
+      // PONTO CRÍTICO: A linha orbital da lua é filha do pivô ORBITAL do seu planeta.
+      // Isso a sincroniza com a posição do planeta, mas NÃO com sua rotação axial.
+      if (parentPivot) {
+        orbitLine.parent = parentPivot;
+      }
     }
 
+    // 6. RECURSÃO PARA AS LUAS
     if (bodyData.moons) {
+      // PONTO CRÍTICO: As luas são filhas do pivô ORBITAL do planeta, isolando-as da rotação axial.
       bodyData.moons.forEach((moonData) =>
-        createBodyWithPivot(moonData, pivot)
+        createBodyWithPivot(moonData, orbitalPivot)
       );
     }
+    // ================== FIM DA NOVA ARQUITETURA ==================
   };
 
   createBodyWithPivot(config.star);
@@ -230,6 +264,7 @@ export const createPlanetarySystem = (scene, config) => {
       barycenterLine.isVisible = false;
 
       bodyData.components.forEach((componentData) => {
+        // A chamada recursiva agora constrói a hierarquia correta para cada componente
         createBodyWithPivot(componentData);
 
         const mutualOrbitPoints = [];
@@ -245,18 +280,13 @@ export const createPlanetarySystem = (scene, config) => {
             )
           );
         }
-        // --- ALTERAÇÃO AQUI ---
-        // A linha agora é criada como um círculo plano, sem a inclinação do sistema aplicada.
-        // A inclinação será aplicada dinamicamente em main.js através da rotação.
-        // REMOVIDO: const finalMutualPath = mutualOrbitPoints.map((p) => BABYLON.Vector3.TransformCoordinates(p, systemInclinationMatrix));
         const mutualLine = BABYLON.MeshBuilder.CreateLines(
           `${componentData.name}-orbit-line`,
-          { points: mutualOrbitPoints }, // Usando os pontos planos diretamente
+          { points: mutualOrbitPoints },
           scene
         );
         mutualLine.color = new BABYLON.Color3(0.4, 0.4, 0.4);
         mutualLine.isVisible = false;
-        // ADICIONADO: Inicializa o quaternion para que possamos rotacioná-lo depois.
         mutualLine.rotationQuaternion = new BABYLON.Quaternion();
       });
     }
@@ -273,5 +303,7 @@ export const createPlanetarySystem = (scene, config) => {
 
   createNebula(scene, nebulaConfig);
 
-  console.log("Sistema Planetário reconstruído com Pinos de Eixo restaurados.");
+  console.log(
+    "Sistema Planetário reconstruído com hierarquia de pivôs corrigida."
+  );
 };

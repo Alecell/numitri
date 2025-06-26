@@ -8,6 +8,7 @@ import {
 import {
   calculateEllipticalOrbit,
   getCyclicValue,
+  getOrbitPathPoints,
 } from "./orbitalMechanics.js";
 import {
   initializeEclipseMaterials,
@@ -134,23 +135,26 @@ const toggleDarkSideLight = ({ isEnabled, scene }) => {
 // FUNÇÕES DE ATUALIZAÇÃO E CÁLCULO
 // =======================================================
 const updateNebulaDecay = (pivot) => {
-  const mesh = pivot.getChildren()[0];
+  const meshes = pivot.getChildMeshes(false); // false = não buscar em descendentes de descendentes
+  const mesh = meshes[0]; // Pegamos a primeira malha encontrada.
+
   const bodyData = pivot.metadata;
   const centralRay = pivot.metadata.forwardRay;
 
-  if (
-    !mesh ||
-    !mesh.material ||
-    !isNarymInNebula ||
-    !bodyData.deepNebula ||
-    !centralRay
-  ) {
+  // Condição de saída simplificada e corrigida.
+  // Se não houver malha ou material, não há nada a fazer.
+  if (!mesh || !mesh.material) {
+    return;
+  }
+
+  // Condição para resetar o material (quando não estiver na nébula, etc.)
+  if (!isNarymInNebula || !bodyData.deepNebula || !centralRay) {
     mesh.material.diffuseColor.set(1, 1, 1);
     return;
   }
 
   const maxDistance = bodyData.deepNebula;
-  const nebulaPredicate = (mesh) => mesh.name === "nebula-mesh";
+  const nebulaPredicate = (m) => m.name === "nebula-mesh";
   const hitInfo = scene.pickWithRay(centralRay, nebulaPredicate);
 
   if (hitInfo.hit) {
@@ -160,6 +164,7 @@ const updateNebulaDecay = (pivot) => {
 
     mesh.material.diffuseColor.set(diffuseValue, diffuseValue, diffuseValue);
   } else {
+    // Se o raio não atingir a nébula, resetamos a cor.
     mesh.material.diffuseColor.set(1, 1, 1);
   }
 };
@@ -202,7 +207,7 @@ const updateSystemState = (time) => {
 
   const yearLength = binarySystem.orbit.period;
 
-  // --- LÓGICA DOS CICLOS DE LONGO PRAZO ---
+  // --- LÓGICA DO SISTEMA BINÁRIO (sem alterações) ---
   let currentEccentricity = binarySystem.orbit.eccentricity;
   let currentInclination = binarySystem.orbit.inclination;
   let currentApsidalAngle = 0;
@@ -226,7 +231,6 @@ const updateSystemState = (time) => {
     const cycle = binarySystem.longTermCycles.apsidalPrecession;
     const periodInDays = cycle.period * yearLength;
     if (periodInDays > 0) {
-      // Calcula a fração da rotação completa e converte para radianos
       currentApsidalAngle = (time / periodInDays) * (2 * Math.PI);
     }
   }
@@ -267,7 +271,7 @@ const updateSystemState = (time) => {
   );
   const barycenterTiltedPos = BABYLON.Vector3.TransformCoordinates(
     barycenterFlatPos,
-    combinedSystemMatrix // Usando a matriz combinada
+    combinedSystemMatrix
   );
 
   const barycenterOrbitLine = scene.getMeshByName(
@@ -286,6 +290,7 @@ const updateSystemState = (time) => {
     );
     if (!planetPivot) return;
 
+    // POSICIONAMENTO E ROTAÇÃO DO PLANETA (sem alterações)
     const orbitRadius = componentData.orbitRadius * simulationConfig.scale;
     const angleOffset = index === 0 ? 0 : Math.PI;
     const mutualOffsetFlat = new BABYLON.Vector3(
@@ -302,34 +307,29 @@ const updateSystemState = (time) => {
     const componentOrbitLine = scene.getMeshByName(
       `${componentData.name}-orbit-line`
     );
-    // --- ALTERAÇÃO AQUI ---
-    // Agora, além de mover a linha, nós também a rotacionamos.
     if (componentOrbitLine) {
       componentOrbitLine.position = barycenterTiltedPos;
       componentOrbitLine.rotationQuaternion = systemInclinationQuaternion;
     }
 
-    // ROTAÇÃO, PRECESSÃO E VARIAÇÃO DE OBLIQUIDADE
+    const bodyRotationPivot =
+      planetPivot.metadata.bodyRotationPivot || planetPivot;
     const rotationSpeed = (2 * Math.PI) / componentData.rotationPeriod;
     const totalRotationAngle = rotationSpeed * time;
     const dailySpinQuat = BABYLON.Quaternion.RotationAxis(
       BABYLON.Axis.Y,
       totalRotationAngle
     );
-
-    let finalCombinedRotation;
     let currentTiltQuat = planetPivot.metadata.baseTiltQuaternion;
-
     if (componentData.longTermCycles?.obliquityVariation) {
       const obliquityCycle = componentData.longTermCycles.obliquityVariation;
       const currentObliquity = getCyclicValue(obliquityCycle, time, yearLength);
-
       currentTiltQuat = BABYLON.Quaternion.RotationAxis(
         new BABYLON.Vector3(0, 0, 1),
         BABYLON.Tools.ToRadians(currentObliquity)
       );
     }
-
+    let finalCombinedRotation;
     if (componentData.precessionPeriod && currentTiltQuat) {
       const precessionPeriodInDays =
         componentData.precessionPeriod * yearLength;
@@ -346,13 +346,11 @@ const updateSystemState = (time) => {
     } else {
       finalCombinedRotation = dailySpinQuat;
     }
-    planetPivot.rotationQuaternion = finalCombinedRotation;
+    bodyRotationPivot.rotationQuaternion = finalCombinedRotation;
 
-    // ATUALIZAÇÃO DE EFEITOS (para este planeta)
     applyRays(planetPivot, simulationConfig);
     updateNebulaDecay(planetPivot);
 
-    // ATUALIZAÇÃO DAS LUAS
     if (componentData.moons) {
       componentData.moons.forEach((moonData) => {
         const moonPivot = scene.getTransformNodeByName(
@@ -360,14 +358,31 @@ const updateSystemState = (time) => {
         );
         if (!moonPivot) return;
 
-        const moonFlatPos = calculateEllipticalOrbit(
-          moonData.orbit,
-          simulationConfig.scale,
-          time
-        );
-
-        // --- ALTERAÇÃO: Lógica de orientação da órbita da lua ---
-        const moonInclination = moonData.orbit.inclination || 0;
+        // --- 1. CALCULAR PARÂMETROS ORBITAIS DINÂMICOS DA LUA ---
+        let currentMoonEccentricity = moonData.orbit.eccentricity;
+        if (moonData.longTermCycles?.eccentricityVariation) {
+          currentMoonEccentricity = getCyclicValue(
+            moonData.longTermCycles.eccentricityVariation,
+            time,
+            yearLength
+          );
+        }
+        let currentMoonInclination = moonData.orbit.inclination;
+        if (moonData.longTermCycles?.inclinationVariation) {
+          currentMoonInclination = getCyclicValue(
+            moonData.longTermCycles.inclinationVariation,
+            time,
+            yearLength
+          );
+        }
+        let currentMoonApsidalAngle = 0;
+        if (moonData.longTermCycles?.apsidalPrecession) {
+          const cycle = moonData.longTermCycles.apsidalPrecession;
+          const periodInDays = cycle.period * yearLength;
+          if (periodInDays > 0) {
+            currentMoonApsidalAngle = (time / periodInDays) * (2 * Math.PI);
+          }
+        }
         let moonNodalAngle = 0;
         if (moonData.orbit.nodalPrecessionPeriod > 0) {
           const periodInDays =
@@ -375,40 +390,83 @@ const updateSystemState = (time) => {
           moonNodalAngle = (time / periodInDays) * (2 * Math.PI);
         }
 
+        const currentMoonOrbitData = {
+          ...moonData.orbit,
+          eccentricity: currentMoonEccentricity,
+        };
+
+        // --- 2. CÁLCULO DA POSIÇÃO E ORIENTAÇÃO ---
+        const moonFlatPos = calculateEllipticalOrbit(
+          currentMoonOrbitData,
+          simulationConfig.scale,
+          time,
+          0 // PrecessionAngle = 0 para obter a forma base
+        );
+
+        const apsidalQuat = BABYLON.Quaternion.RotationAxis(
+          BABYLON.Axis.Y,
+          currentMoonApsidalAngle
+        );
         const inclinationQuat = BABYLON.Quaternion.RotationAxis(
           BABYLON.Axis.X,
-          BABYLON.Tools.ToRadians(moonInclination)
+          BABYLON.Tools.ToRadians(currentMoonInclination)
         );
         const nodalQuat = BABYLON.Quaternion.RotationAxis(
           BABYLON.Axis.Y,
           moonNodalAngle
         );
-        const finalMoonOrientationQuat = nodalQuat.multiply(inclinationQuat);
+        const finalMoonOrientationQuat = nodalQuat.multiply(
+          inclinationQuat.multiply(apsidalQuat)
+        );
 
-        const moonOrientationMatrix = BABYLON.Matrix.Identity();
+        // ===================================
+        // === INÍCIO DA CORREÇÃO FUNDAMENTAL ===
+        // ===================================
+
+        // 3. APLICAR TRANSFORMAÇÕES (MÉTODO CORRIGIDO)
+        // Criamos uma matriz de rotação a partir do nosso quaternion de orientação.
+        const moonOrientationMatrix = new BABYLON.Matrix();
         finalMoonOrientationQuat.toRotationMatrix(moonOrientationMatrix);
 
-        const moonOffsetTilted = BABYLON.Vector3.TransformCoordinates(
+        // Transformamos a posição 2D plana em uma posição 3D orientada corretamente.
+        const finalMoonPosition = BABYLON.Vector3.TransformCoordinates(
           moonFlatPos,
-          moonOrientationMatrix // Usando a matriz de orientação da lua
-        );
-        // --- FIM DA ALTERAÇÃO ---
-
-        moonPivot.position = planetPivot
-          .getAbsolutePosition()
-          .add(moonOffsetTilted);
-
-        const orbitalAngle = ((2 * Math.PI) / moonData.orbit.period) * time;
-        moonPivot.rotationQuaternion = BABYLON.Quaternion.RotationAxis(
-          BABYLON.Axis.Y,
-          -orbitalAngle
+          moonOrientationMatrix
         );
 
+        // Aplicamos a posição 3D final diretamente ao pivô da lua.
+        moonPivot.position = finalMoonPosition;
+
+        // A rotação do pivô agora fica livre para outros usos (ou pode ser zerada).
+        // Por enquanto, a deixamos como está, pois não causa mais problemas.
+        // moonPivot.rotationQuaternion = new BABYLON.Quaternion(); // Opcional
+
+        // A rotação axial da própria lua ainda é aplicada à sua malha.
+        const moonRotationSpeed = (2 * Math.PI) / moonData.rotationPeriod;
+        const moonMesh = moonPivot.getChildren()[0];
+        if (moonMesh) {
+          moonMesh.rotation.y = moonRotationSpeed * time;
+        }
+
+        // 4. ATUALIZAR A LINHA ORBITAL (MÉTODO ANTERIOR, QUE JÁ ESTAVA CORRETO)
         const orbitLine = scene.getMeshByName(`${moonData.name}-orbit-line`);
         if (orbitLine) {
-          orbitLine.position = planetPivot.getAbsolutePosition();
-          orbitLine.rotationQuaternion = finalMoonOrientationQuat; // Rotacionando a linha da órbita
+          const pureShapePoints = getOrbitPathPoints(
+            { ...moonData.orbit, eccentricity: currentMoonEccentricity },
+            simulationConfig.scale
+          );
+          BABYLON.MeshBuilder.CreateLines(orbitLine.name, {
+            points: pureShapePoints,
+            instance: orbitLine,
+          });
+          orbitLine.position = BABYLON.Vector3.Zero();
+          // A linha orbital recebe o mesmo quaternion de orientação, garantindo a sincronia visual.
+          orbitLine.rotationQuaternion = finalMoonOrientationQuat;
         }
+
+        // =================================
+        // === FIM DA CORREÇÃO FUNDAMENTAL ===
+        // =================================
 
         applyRays(moonPivot, simulationConfig);
         updateNebulaDecay(moonPivot);
@@ -416,7 +474,6 @@ const updateSystemState = (time) => {
     }
   });
 
-  // --- LÓGICA DE EFEITOS GLOBAIS ---
   if (nebulaConfig.enabled) {
     const narymPivot = scene.getTransformNodeByName("Narym-pivot");
     const nebulaMesh = scene.getMeshByName("nebula-mesh");
