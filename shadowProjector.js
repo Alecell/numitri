@@ -77,7 +77,10 @@ export const projectShadow = (occluderPivot, scene, config) => {
   occluderPivot.metadata.backwardRay.direction = direction;
 
   const predicate = (mesh) => {
-    const isBody = mesh.parent?.metadata?.kind === "body";
+    let isBody = mesh.parent?.metadata?.kind === "body";
+    if (mesh.name === "Narym") {
+      isBody = mesh.parent?.parent?.metadata?.kind === "body";
+    }
 
     const isNotSelf = !occluderPivot.name.includes(mesh.name);
     const isMesh = !mesh.name.includes("-");

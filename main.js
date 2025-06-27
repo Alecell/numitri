@@ -419,33 +419,44 @@ const updateSystemState = (time) => {
           inclinationQuat.multiply(apsidalQuat)
         );
 
-        // ===================================
-        // === INÍCIO DA CORREÇÃO FUNDAMENTAL ===
-        // ===================================
-
-        // 3. APLICAR TRANSFORMAÇÕES (MÉTODO CORRIGIDO)
-        // Criamos uma matriz de rotação a partir do nosso quaternion de orientação.
         const moonOrientationMatrix = new BABYLON.Matrix();
         finalMoonOrientationQuat.toRotationMatrix(moonOrientationMatrix);
 
-        // Transformamos a posição 2D plana em uma posição 3D orientada corretamente.
         const finalMoonPosition = BABYLON.Vector3.TransformCoordinates(
           moonFlatPos,
           moonOrientationMatrix
         );
 
-        // Aplicamos a posição 3D final diretamente ao pivô da lua.
         moonPivot.position = finalMoonPosition;
-
-        // A rotação do pivô agora fica livre para outros usos (ou pode ser zerada).
-        // Por enquanto, a deixamos como está, pois não causa mais problemas.
-        // moonPivot.rotationQuaternion = new BABYLON.Quaternion(); // Opcional
-
-        // A rotação axial da própria lua ainda é aplicada à sua malha.
-        const moonRotationSpeed = (2 * Math.PI) / moonData.rotationPeriod;
         const moonMesh = moonPivot.getChildren()[0];
         if (moonMesh) {
-          moonMesh.rotation.y = moonRotationSpeed * time;
+          if (!moonMesh.rotationQuaternion) {
+            moonMesh.rotationQuaternion = new BABYLON.Quaternion();
+          }
+
+          if (moonData.rotationPeriod === moonData.orbit.period) {
+            const toPlanet = moonPivot.position.scale(-1).normalize();
+
+            if (toPlanet.lengthSquared() > 0) {
+              const correctUp = BABYLON.Vector3.TransformCoordinates(
+                BABYLON.Axis.Y,
+                moonOrientationMatrix
+              );
+
+              const tidalLockQuat = BABYLON.Quaternion.FromLookDirectionLH(
+                toPlanet,
+                correctUp
+              );
+              moonMesh.rotationQuaternion.copyFrom(tidalLockQuat);
+            }
+          } else {
+            const moonRotationSpeed = (2 * Math.PI) / moonData.rotationPeriod;
+            BABYLON.Quaternion.RotationAxisToRef(
+              BABYLON.Axis.Y,
+              moonRotationSpeed * time,
+              moonMesh.rotationQuaternion
+            );
+          }
         }
 
         // 4. ATUALIZAR A LINHA ORBITAL (MÉTODO ANTERIOR, QUE JÁ ESTAVA CORRETO)
