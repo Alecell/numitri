@@ -60,12 +60,21 @@ const setupMaterial = (mesh, visualConfig, config) => {
 const createNebula = (scene, config) => {
   if (!config.enabled) return;
 
-  const path = config.path.map((p) => new BABYLON.Vector3(p.x, p.y, p.z));
+  const nebulaPivot = new BABYLON.TransformNode("Nebula-System-Pivot", scene);
+  const originalPoints = config.path.map(
+    (p) => new BABYLON.Vector3(p.x, p.y, p.z)
+  );
+
+  const centerOfMass = new BABYLON.Vector3(0, 0, 0);
+  originalPoints.forEach((p) => centerOfMass.addInPlace(p));
+  centerOfMass.scaleInPlace(1 / originalPoints.length);
+
+  const centeredPath = originalPoints.map((p) => p.subtract(centerOfMass));
 
   const nebulaMesh = BABYLON.MeshBuilder.CreateTube(
     "nebula-mesh",
     {
-      path: path,
+      path: centeredPath,
       radius: config.tubeSettings.radius * simulationConfig.scale,
       tessellation: config.tubeSettings.tessellation,
       cap: BABYLON.Mesh.NO_CAP,
@@ -73,36 +82,45 @@ const createNebula = (scene, config) => {
     scene
   );
   nebulaMesh.isPickable = false;
+  nebulaMesh.parent = nebulaPivot;
+  nebulaMesh.rotation.x = Math.PI / 2;
 
   const material = new BABYLON.StandardMaterial("nebula-mat", scene);
-  material.emissiveTexture = new BABYLON.Texture(
-    config.material.textureUrl,
-    scene
-  );
-  material.opacityTexture = material.emissiveTexture;
+
+  const emissiveTex = new BABYLON.Texture(config.material.textureUrl, scene);
+  emissiveTex.uScale = 0.1;
+  emissiveTex.vScale = 1;
+
+  const diffuseTex = new BABYLON.Texture("./smoke.png", scene);
+  diffuseTex.uScale = 1;
+  diffuseTex.vScale = 1000;
+  diffuseTex.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
+  diffuseTex.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
+
+  material.emissiveTexture = emissiveTex;
+  material.opacityTexture = emissiveTex;
+  material.diffuseTexture = diffuseTex;
 
   material.disableLighting = true;
   material.emissiveColor = BABYLON.Color3.FromHexString(
     config.material.emissiveColor
   );
   material.alpha = config.material.alpha;
-
   material.backFaceCulling = false;
   material.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
   material.needDepthPrePass = true;
 
-  material.diffuseTexture = new BABYLON.Texture("./smoke.png", scene);
-  material.diffuseTexture.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
-  material.diffuseTexture.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
-
   nebulaMesh.material = material;
 
   if (config.debug.showPath) {
-    BABYLON.MeshBuilder.CreateLines(
+    const debugLine = BABYLON.MeshBuilder.CreateLines(
       "nebula-path-line",
-      { points: path },
+      { points: centeredPath },
       scene
-    ).color = BABYLON.Color3.Teal();
+    );
+    debugLine.color = BABYLON.Color3.Teal();
+    debugLine.parent = nebulaPivot;
+    debugLine.rotation.x = Math.PI / 2;
   }
 };
 

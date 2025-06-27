@@ -263,6 +263,26 @@ const updateSystemState = (time) => {
   const systemInclinationQuaternion =
     BABYLON.Quaternion.FromRotationMatrix(combinedSystemMatrix);
 
+  if (nebulaConfig.enabled) {
+    const nebulaPivot = scene.getTransformNodeByName("Nebula-System-Pivot");
+    if (nebulaPivot) {
+      const dayZeroFlatPos = calculateEllipticalOrbit(
+        currentOrbitData,
+        simulationConfig.scale,
+        0,
+        currentApsidalAngle
+      );
+
+      const dayZeroTiltedPos = BABYLON.Vector3.TransformCoordinates(
+        dayZeroFlatPos,
+        combinedSystemMatrix
+      );
+
+      nebulaPivot.position = dayZeroTiltedPos;
+      nebulaPivot.rotationQuaternion = systemInclinationQuaternion;
+    }
+  }
+
   const barycenterFlatPos = calculateEllipticalOrbit(
     currentOrbitData,
     simulationConfig.scale,

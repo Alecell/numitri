@@ -724,23 +724,24 @@ export const nebulaConfig = {
       z: -40000,
     },
   ],
-
+  collisionVolume: {
+    length: 500,
+    height: 100,
+    depth: 50,
+  },
   tubeSettings: {
     radius: 30_000_000,
     tessellation: 10,
   },
-
   material: {
     textureUrl: "./smoke.png",
     emissiveColor: "#00CED1",
     alpha: 0.15,
   },
-
   fog: {
     color: "#006c6d",
     density: 0.01,
   },
-
   debug: {
     showPath: false,
   },
