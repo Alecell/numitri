@@ -9,6 +9,7 @@ import {
   calculateEllipticalOrbit,
   getCyclicValue,
   getOrbitPathPoints,
+  calculateOrbitTangent,
 } from "./orbitalMechanics.js";
 import {
   initializeEclipseMaterials,
@@ -135,19 +136,16 @@ const toggleDarkSideLight = ({ isEnabled, scene }) => {
 // FUNÇÕES DE ATUALIZAÇÃO E CÁLCULO
 // =======================================================
 const updateNebulaDecay = (pivot) => {
-  const meshes = pivot.getChildMeshes(false); // false = não buscar em descendentes de descendentes
-  const mesh = meshes[0]; // Pegamos a primeira malha encontrada.
+  const meshes = pivot.getChildMeshes(false);
+  const mesh = meshes[0];
 
   const bodyData = pivot.metadata;
   const centralRay = pivot.metadata.forwardRay;
 
-  // Condição de saída simplificada e corrigida.
-  // Se não houver malha ou material, não há nada a fazer.
   if (!mesh || !mesh.material) {
     return;
   }
 
-  // Condição para resetar o material (quando não estiver na nébula, etc.)
   if (!isNarymInNebula || !bodyData.deepNebula || !centralRay) {
     mesh.material.diffuseColor.set(1, 1, 1);
     return;
@@ -164,7 +162,6 @@ const updateNebulaDecay = (pivot) => {
 
     mesh.material.diffuseColor.set(diffuseValue, diffuseValue, diffuseValue);
   } else {
-    // Se o raio não atingir a nébula, resetamos a cor.
     mesh.material.diffuseColor.set(1, 1, 1);
   }
 };
@@ -197,6 +194,19 @@ const applyRays = (pivot, simulationConfig) => {
       }
     });
   }
+};
+
+const isNarymInsideNebula = (narymPivot, nebulaPivot, scene) => {
+  if (!narymPivot || !nebulaPivot) return false;
+
+  const collisionTube = scene.getMeshByName("nebula-mesh");
+  const narymMesh = scene.getMeshByName("Narym");
+
+  if (!collisionTube) {
+    return false;
+  }
+
+  return collisionTube.intersectsMesh(narymMesh);
 };
 
 const updateSystemState = (time) => {
@@ -263,23 +273,64 @@ const updateSystemState = (time) => {
   const systemInclinationQuaternion =
     BABYLON.Quaternion.FromRotationMatrix(combinedSystemMatrix);
 
+  // REPOSICIONA A NEBULOSA NO DIA 0 DE NARYM
   if (nebulaConfig.enabled) {
     const nebulaPivot = scene.getTransformNodeByName("Nebula-System-Pivot");
     if (nebulaPivot) {
-      const dayZeroFlatPos = calculateEllipticalOrbit(
+      // 1. Determinar o ponto de referência temporal (o "Dia 0" do ano corrente)
+      const tempoDeReferencia =
+        Math.floor(simulationTime / yearLength) * yearLength;
+
+      // 2. Calcular a posição do baricentro e a tangente da órbita NESTE PONTO DE REFERÊNCIA
+      const barycenterFlatPos_Ref = calculateEllipticalOrbit(
         currentOrbitData,
         simulationConfig.scale,
-        0,
+        tempoDeReferencia,
+        currentApsidalAngle
+      );
+      const tangentFlat_Ref = calculateOrbitTangent(
+        currentOrbitData,
+        simulationConfig.scale,
+        tempoDeReferencia,
         currentApsidalAngle
       );
 
-      const dayZeroTiltedPos = BABYLON.Vector3.TransformCoordinates(
-        dayZeroFlatPos,
+      // 3. Transformar a posição e a tangente para o plano orbital inclinado do sistema
+      const barycenterTiltedPos_Ref = BABYLON.Vector3.TransformCoordinates(
+        barycenterFlatPos_Ref,
         combinedSystemMatrix
       );
+      const tangentTilted_Ref = BABYLON.Vector3.TransformNormal(
+        tangentFlat_Ref,
+        combinedSystemMatrix
+      ).normalize();
 
-      nebulaPivot.position = dayZeroTiltedPos;
-      nebulaPivot.rotationQuaternion = systemInclinationQuaternion;
+      // 4. Calcular o vetor de offset (lógica inalterada)
+      const orbitalUp = BABYLON.Vector3.TransformNormal(
+        BABYLON.Axis.Y,
+        combinedSystemMatrix
+      ).normalize();
+      const offsetNormal = BABYLON.Vector3.Cross(
+        tangentTilted_Ref,
+        orbitalUp
+      ).normalize();
+
+      // 5. Aplicar o offset à posição de referência para obter a posição final da nebulosa
+      const offsetDistance =
+        nebulaConfig.offsetDistance * simulationConfig.scale;
+      nebulaPivot.position = barycenterTiltedPos_Ref.add(
+        offsetNormal.scale(offsetDistance)
+      );
+
+      // 6. Orientar a nebulosa para se alinhar com a tangente no ponto de referência
+      if (!nebulaPivot.rotationQuaternion) {
+        nebulaPivot.rotationQuaternion = new BABYLON.Quaternion();
+      }
+      BABYLON.Quaternion.FromLookDirectionLHToRef(
+        tangentTilted_Ref,
+        orbitalUp,
+        nebulaPivot.rotationQuaternion
+      );
     }
   }
 
@@ -491,13 +542,8 @@ const updateSystemState = (time) => {
             instance: orbitLine,
           });
           orbitLine.position = BABYLON.Vector3.Zero();
-          // A linha orbital recebe o mesmo quaternion de orientação, garantindo a sincronia visual.
           orbitLine.rotationQuaternion = finalMoonOrientationQuat;
         }
-
-        // =================================
-        // === FIM DA CORREÇÃO FUNDAMENTAL ===
-        // =================================
 
         applyRays(moonPivot, simulationConfig);
         updateNebulaDecay(moonPivot);
@@ -507,10 +553,15 @@ const updateSystemState = (time) => {
 
   if (nebulaConfig.enabled) {
     const narymPivot = scene.getTransformNodeByName("Narym-pivot");
-    const nebulaMesh = scene.getMeshByName("nebula-mesh");
-    if (narymPivot && nebulaMesh) {
-      const narymPosition = narymPivot.getAbsolutePosition();
-      const currentlyInside = nebulaMesh.intersectsPoint(narymPosition);
+    const nebulaPivot = scene.getTransformNodeByName("Nebula-System-Pivot");
+
+    if (narymPivot && nebulaPivot) {
+      const currentlyInside = isNarymInsideNebula(
+        narymPivot,
+        nebulaPivot,
+        scene
+      );
+
       if (currentlyInside && !isNarymInNebula) {
         isNarymInNebula = true;
         scene.fogColor = BABYLON.Color3.FromHexString(nebulaConfig.fog.color);

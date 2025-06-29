@@ -60,47 +60,37 @@ const setupMaterial = (mesh, visualConfig, config) => {
 const createNebula = (scene, config) => {
   if (!config.enabled) return;
 
-  const nebulaPivot = new BABYLON.TransformNode("Nebula-System-Pivot", scene);
-  const originalPoints = config.path.map(
-    (p) => new BABYLON.Vector3(p.x, p.y, p.z)
+  const nebulaSystemPivot = new BABYLON.TransformNode(
+    "Nebula-System-Pivot",
+    scene
   );
 
-  const centerOfMass = new BABYLON.Vector3(0, 0, 0);
-  originalPoints.forEach((p) => centerOfMass.addInPlace(p));
-  centerOfMass.scaleInPlace(1 / originalPoints.length);
-
-  const centeredPath = originalPoints.map((p) => p.subtract(centerOfMass));
-
-  const nebulaMesh = BABYLON.MeshBuilder.CreateTube(
+  const nebulaMesh = BABYLON.MeshBuilder.CreateCylinder(
     "nebula-mesh",
     {
-      path: centeredPath,
-      radius: config.tubeSettings.radius * simulationConfig.scale,
+      height: config.tubeSettings.height,
+      diameter: config.tubeSettings.diameter,
       tessellation: config.tubeSettings.tessellation,
-      cap: BABYLON.Mesh.NO_CAP,
     },
     scene
   );
+  nebulaMesh.parent = nebulaSystemPivot;
   nebulaMesh.isPickable = false;
-  nebulaMesh.parent = nebulaPivot;
   nebulaMesh.rotation.x = Math.PI / 2;
+  nebulaMesh.scaling = new BABYLON.Vector3(1, 1, 1);
 
   const material = new BABYLON.StandardMaterial("nebula-mat", scene);
-
   const emissiveTex = new BABYLON.Texture(config.material.textureUrl, scene);
   emissiveTex.uScale = 0.1;
   emissiveTex.vScale = 1;
-
   const diffuseTex = new BABYLON.Texture("./smoke.png", scene);
-  diffuseTex.uScale = 1;
+  diffuseTex.uScale = 10;
   diffuseTex.vScale = 1000;
   diffuseTex.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
   diffuseTex.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
-
   material.emissiveTexture = emissiveTex;
   material.opacityTexture = emissiveTex;
   material.diffuseTexture = diffuseTex;
-
   material.disableLighting = true;
   material.emissiveColor = BABYLON.Color3.FromHexString(
     config.material.emissiveColor
@@ -109,27 +99,11 @@ const createNebula = (scene, config) => {
   material.backFaceCulling = false;
   material.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
   material.needDepthPrePass = true;
-
   nebulaMesh.material = material;
-
-  if (config.debug.showPath) {
-    const debugLine = BABYLON.MeshBuilder.CreateLines(
-      "nebula-path-line",
-      { points: centeredPath },
-      scene
-    );
-    debugLine.color = BABYLON.Color3.Teal();
-    debugLine.parent = nebulaPivot;
-    debugLine.rotation.x = Math.PI / 2;
-  }
 };
 
 export const createPlanetarySystem = (scene, config) => {
   const createBodyWithPivot = (bodyData, parentPivot = null) => {
-    // ================== INÍCIO DA NOVA ARQUITETURA ==================
-
-    // 1. PIVÔ ORBITAL: Controla a POSIÇÃO do corpo no espaço. É a referência estável.
-    // O nome "-pivot" antigo é mantido para consistência inicial, mas sua função mudou.
     const orbitalPivot = new BABYLON.TransformNode(
       `${bodyData.name}-pivot`,
       scene

@@ -97,3 +97,34 @@ export const getCyclicValue = (
 
   return currentValue;
 };
+
+export const calculateOrbitTangent = (
+  orbitData,
+  scale,
+  simulationTime,
+  precessionAngle = 0
+) => {
+  const deltaT = 0.001; // Pequeno incremento de tempo
+
+  // Posição no tempo atual
+  const p1 = calculateEllipticalOrbit(
+    orbitData,
+    scale,
+    simulationTime,
+    precessionAngle
+  );
+
+  // Posição um instante à frente
+  const p2 = calculateEllipticalOrbit(
+    orbitData,
+    scale,
+    simulationTime + deltaT,
+    precessionAngle
+  );
+
+  // O vetor tangente é a direção de p1 para p2
+  const tangent = p2.subtract(p1);
+  tangent.normalize();
+
+  return tangent;
+};
