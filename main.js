@@ -10,6 +10,7 @@ import {
   getCyclicValue,
   getOrbitPathPoints,
   calculateOrbitTangent,
+  findConjunctionTime,
 } from "./orbitalMechanics.js";
 import {
   initializeEclipseMaterials,
@@ -28,6 +29,8 @@ let isPaused = false;
 let lastTimeScale = simulationConfig.timeScale;
 let simulationTime = 0;
 let timeJustJumped = true;
+let lastCalculatedEclipseYear = -1;
+let cachedEclipseTime = 0;
 
 const NARIM_HOURS_IN_DAY = 30.0;
 const OCCLUDING_BODIES = ["Narym", "Vezmar", "Tharela", "Ciren"];
@@ -202,11 +205,30 @@ const isNarymInsideNebula = (narymPivot, nebulaPivot, scene) => {
   const collisionTube = scene.getMeshByName("nebula-mesh");
   const narymMesh = scene.getMeshByName("Narym");
 
-  if (!collisionTube) {
+  if (!collisionTube || !narymMesh) {
     return false;
   }
 
-  return collisionTube.intersectsMesh(narymMesh);
+  const isIntersecting = collisionTube.intersectsMesh(narymMesh, true); // Usar precise check
+
+  // Log apenas quando a intersecção for detectada
+  if (isIntersecting) {
+    const narymPos = narymMesh.getAbsolutePosition();
+    const nebulaPos = collisionTube.getAbsolutePosition();
+    const distance = BABYLON.Vector3.Distance(narymPos, nebulaPos);
+
+    console.log(
+      `[Debug | Colisão] DETECTADA! Distância=${distance.toFixed(
+        2
+      )}. Pos Narym: {X:${narymPos.x.toFixed(2)}, Y:${narymPos.y.toFixed(
+        2
+      )}, Z:${narymPos.z.toFixed(2)}}. Pos Nebulosa: {X:${nebulaPos.x.toFixed(
+        2
+      )}, Y:${nebulaPos.y.toFixed(2)}, Z:${nebulaPos.z.toFixed(2)}}`
+    );
+  }
+
+  return isIntersecting;
 };
 
 const updateSystemState = (time) => {
@@ -277,58 +299,93 @@ const updateSystemState = (time) => {
   if (nebulaConfig.enabled) {
     const nebulaPivot = scene.getTransformNodeByName("Nebula-System-Pivot");
     if (nebulaPivot) {
-      // 1. Determinar o ponto de referência temporal (o "Dia 0" do ano corrente)
-      const tempoDeReferencia =
-        Math.floor(simulationTime / yearLength) * yearLength;
+      const currentYear = Math.floor(simulationTime / yearLength);
 
-      // 2. Calcular a posição do baricentro e a tangente da órbita NESTE PONTO DE REFERÊNCIA
+      if (currentYear !== lastCalculatedEclipseYear) {
+        cachedEclipseTime = findConjunctionTime(
+          currentYear,
+          binarySystem,
+          simulationConfig.scale
+        );
+        lastCalculatedEclipseYear = currentYear;
+      }
+
+      const tempoDeReferencia = cachedEclipseTime;
+
+      let refEccentricity = getCyclicValue(
+        binarySystem.longTermCycles.eccentricityVariation,
+        tempoDeReferencia,
+        yearLength
+      );
+      let refInclination = getCyclicValue(
+        binarySystem.longTermCycles.inclinationVariation,
+        tempoDeReferencia,
+        yearLength
+      );
+      let refApsidalAngle =
+        (tempoDeReferencia /
+          (binarySystem.longTermCycles.apsidalPrecession.period * yearLength)) *
+        (2 * Math.PI);
+      let refNodalAngle =
+        (tempoDeReferencia /
+          (binarySystem.orbit.nodalPrecessionPeriod * yearLength)) *
+        (2 * Math.PI);
+
+      const refOrbitData = {
+        ...binarySystem.orbit,
+        eccentricity: refEccentricity,
+        inclination: refInclination,
+      };
+      const refInclinationMatrix = BABYLON.Matrix.RotationX(
+        BABYLON.Tools.ToRadians(refOrbitData.inclination)
+      );
+      const refNodalMatrix = BABYLON.Matrix.RotationY(refNodalAngle);
+      const refCombinedSystemMatrix =
+        refInclinationMatrix.multiply(refNodalMatrix);
+
       const barycenterFlatPos_Ref = calculateEllipticalOrbit(
-        currentOrbitData,
+        refOrbitData,
         simulationConfig.scale,
         tempoDeReferencia,
-        currentApsidalAngle
+        refApsidalAngle
       );
       const tangentFlat_Ref = calculateOrbitTangent(
-        currentOrbitData,
+        refOrbitData,
         simulationConfig.scale,
         tempoDeReferencia,
-        currentApsidalAngle
+        refApsidalAngle
       );
 
-      // 3. Transformar a posição e a tangente para o plano orbital inclinado do sistema
       const barycenterTiltedPos_Ref = BABYLON.Vector3.TransformCoordinates(
         barycenterFlatPos_Ref,
-        combinedSystemMatrix
+        refCombinedSystemMatrix
       );
       const tangentTilted_Ref = BABYLON.Vector3.TransformNormal(
         tangentFlat_Ref,
-        combinedSystemMatrix
+        refCombinedSystemMatrix
       ).normalize();
 
-      // 4. Calcular o vetor de offset (lógica inalterada)
-      const orbitalUp = BABYLON.Vector3.TransformNormal(
+      const orbitalUp_Ref = BABYLON.Vector3.TransformNormal(
         BABYLON.Axis.Y,
-        combinedSystemMatrix
+        refCombinedSystemMatrix
       ).normalize();
       const offsetNormal = BABYLON.Vector3.Cross(
         tangentTilted_Ref,
-        orbitalUp
+        orbitalUp_Ref
       ).normalize();
 
-      // 5. Aplicar o offset à posição de referência para obter a posição final da nebulosa
       const offsetDistance =
         nebulaConfig.offsetDistance * simulationConfig.scale;
       nebulaPivot.position = barycenterTiltedPos_Ref.add(
         offsetNormal.scale(offsetDistance)
       );
 
-      // 6. Orientar a nebulosa para se alinhar com a tangente no ponto de referência
       if (!nebulaPivot.rotationQuaternion) {
         nebulaPivot.rotationQuaternion = new BABYLON.Quaternion();
       }
       BABYLON.Quaternion.FromLookDirectionLHToRef(
         tangentTilted_Ref,
-        orbitalUp,
+        orbitalUp_Ref,
         nebulaPivot.rotationQuaternion
       );
     }
@@ -561,6 +618,8 @@ const updateSystemState = (time) => {
         nebulaPivot,
         scene
       );
+
+      console.log(currentlyInside);
 
       if (currentlyInside && !isNarymInNebula) {
         isNarymInNebula = true;
