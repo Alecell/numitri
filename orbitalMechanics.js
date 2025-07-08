@@ -214,15 +214,7 @@ function calculateAlignmentMetric(
   return BABYLON.Vector3.Dot(posNarym, posVezmar);
 }
 
-/**
- * Encontra o tempo da conjunção Narym-Vezmar para um determinado ano usando uma busca numérica.
- * @param {number} year - O ano da simulação para o qual se busca o eclipse.
- * @param {object} binarySystem - O objeto de configuração do sistema binário.
- * @param {number} scale - A escala da simulação.
- * @returns {number} O simulationTime do pico do alinhamento.
- */
 export const findConjunctionTime = (year, binarySystem, scale) => {
-  console.log(`[Debug | Busca] Iniciando busca para o ano ${year}.`);
   const yearLength = binarySystem.orbit.period;
   const startTime = year * yearLength;
   const endTime = (year + 1) * yearLength;
@@ -259,11 +251,6 @@ export const findConjunctionTime = (year, binarySystem, scale) => {
       bestTimeGross = t;
     }
   }
-  console.log(
-    `[Debug | Busca] Resultado da busca grossa: Tempo=${bestTimeGross.toFixed(
-      2
-    )}, Alinhamento=${maxAlignmentGross.toFixed(5)}`
-  );
 
   let bestTimeFine = bestTimeGross;
   let maxAlignmentFine = maxAlignmentGross;
@@ -301,10 +288,5 @@ export const findConjunctionTime = (year, binarySystem, scale) => {
     }
   }
 
-  console.log(
-    `[Debug | Busca] Resultado final: Tempo=${bestTimeFine.toFixed(
-      4
-    )}, Alinhamento=${maxAlignmentFine.toFixed(5)}`
-  );
   return bestTimeFine;
 };

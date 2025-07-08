@@ -31,6 +31,9 @@ let simulationTime = 0;
 let timeJustJumped = true;
 let lastCalculatedEclipseYear = -1;
 let cachedEclipseTime = 0;
+let vezmarEclipseActive = false;
+let wasNarymInNebula = false;
+let lastLoggedNebulaRecalcYear = -1;
 
 const NARIM_HOURS_IN_DAY = 30.0;
 const OCCLUDING_BODIES = ["Narym", "Vezmar", "Tharela", "Ciren"];
@@ -216,16 +219,6 @@ const isNarymInsideNebula = (narymPivot, nebulaPivot, scene) => {
     const narymPos = narymMesh.getAbsolutePosition();
     const nebulaPos = collisionTube.getAbsolutePosition();
     const distance = BABYLON.Vector3.Distance(narymPos, nebulaPos);
-
-    console.log(
-      `[Debug | Colisão] DETECTADA! Distância=${distance.toFixed(
-        2
-      )}. Pos Narym: {X:${narymPos.x.toFixed(2)}, Y:${narymPos.y.toFixed(
-        2
-      )}, Z:${narymPos.z.toFixed(2)}}. Pos Nebulosa: {X:${nebulaPos.x.toFixed(
-        2
-      )}, Y:${nebulaPos.y.toFixed(2)}, Z:${nebulaPos.z.toFixed(2)}}`
-    );
   }
 
   return isIntersecting;
@@ -238,6 +231,7 @@ const updateSystemState = (time) => {
   if (!binarySystem) return;
 
   const yearLength = binarySystem.orbit.period;
+  const currentYear = Math.floor(simulationTime / yearLength);
 
   // --- LÓGICA DO SISTEMA BINÁRIO (sem alterações) ---
   let currentEccentricity = binarySystem.orbit.eccentricity;
@@ -295,12 +289,10 @@ const updateSystemState = (time) => {
   const systemInclinationQuaternion =
     BABYLON.Quaternion.FromRotationMatrix(combinedSystemMatrix);
 
-  // REPOSICIONA A NEBULOSA NO DIA 0 DE NARYM
+  // REPOSICIONA A NEBULOSA
   if (nebulaConfig.enabled) {
     const nebulaPivot = scene.getTransformNodeByName("Nebula-System-Pivot");
     if (nebulaPivot) {
-      const currentYear = Math.floor(simulationTime / yearLength);
-
       if (currentYear !== lastCalculatedEclipseYear) {
         cachedEclipseTime = findConjunctionTime(
           currentYear,
@@ -308,6 +300,17 @@ const updateSystemState = (time) => {
           simulationConfig.scale
         );
         lastCalculatedEclipseYear = currentYear;
+
+        // --- LÓGICA DE LOG DE VALIDAÇÃO (1) ---
+        if (currentYear !== lastLoggedNebulaRecalcYear) {
+          console.log(
+            `%cSISTEMA: Ano ${currentYear}. Recalculando posição da nebulosa. Próximo eclipse previsto em t=${cachedEclipseTime.toFixed(
+              2
+            )}`,
+            "color: #87CEEB"
+          );
+          lastLoggedNebulaRecalcYear = currentYear;
+        }
       }
 
       const tempoDeReferencia = cachedEclipseTime;
@@ -608,6 +611,49 @@ const updateSystemState = (time) => {
     }
   });
 
+  // --- LÓGICA DE LOG DE VALIDAÇÃO (2) ---
+  const vezmarPivot = scene.getTransformNodeByName("Vezmar-pivot");
+  // O flag 'isEclipsingNarym' será setado em projectShadow
+  const isEclipseNow = vezmarPivot?.metadata?.isEclipsingNarym ?? false;
+
+  if (isEclipseNow && !vezmarEclipseActive) {
+    vezmarEclipseActive = true;
+    const narymPivot = scene.getTransformNodeByName("Narym-pivot");
+    const nebulaPivot = scene.getTransformNodeByName("Nebula-System-Pivot");
+    const star = scene.getMeshByName("Anavon");
+
+    const distToNebulaCenter = BABYLON.Vector3.Distance(
+      narymPivot.getAbsolutePosition(),
+      nebulaPivot.getAbsolutePosition()
+    );
+    const distToStar = BABYLON.Vector3.Distance(
+      narymPivot.getAbsolutePosition(),
+      star.getAbsolutePosition()
+    );
+
+    const dayOfYear = Math.floor(simulationTime % yearLength);
+
+    console.log(
+      `%cEVENTO: ECLIPSE Vezmar->Narym DETECTADO no Ano ${currentYear}, Dia ${dayOfYear}`,
+      "color: #00ff00; font-weight: bold;"
+    );
+    console.log(
+      ` -> Dist. ao centro da nebulosa: ${(
+        (distToNebulaCenter -
+          nebulaConfig.offsetDistance * simulationConfig.scale) /
+        simulationConfig.scale
+      ).toFixed(0)} km (ideal: 0)`
+    );
+    console.log(
+      ` -> Dist. à estrela Anavon: ${(
+        distToStar / simulationConfig.scale
+      ).toFixed(0)} km`
+    );
+  } else if (!isEclipseNow && vezmarEclipseActive) {
+    vezmarEclipseActive = false;
+  }
+
+  // --- LÓGICA DE LOG DE VALIDAÇÃO (3) ---
   if (nebulaConfig.enabled) {
     const narymPivot = scene.getTransformNodeByName("Narym-pivot");
     const nebulaPivot = scene.getTransformNodeByName("Nebula-System-Pivot");
@@ -619,16 +665,26 @@ const updateSystemState = (time) => {
         scene
       );
 
-      console.log(currentlyInside);
+      if (currentlyInside && !wasNarymInNebula) {
+        const dayOfYear = Math.floor(simulationTime % yearLength);
+        console.log(
+          `TRAJETO: Narym ENTROU na nebulosa no Ano ${currentYear}, Dia ${dayOfYear}.`
+        );
+      } else if (!currentlyInside && wasNarymInNebula) {
+        const dayOfYear = Math.floor(simulationTime % yearLength);
+        console.log(
+          `TRAJETO: Narym SAIU da nebulosa no Ano ${currentYear}, Dia ${dayOfYear}.`
+        );
+      }
+      wasNarymInNebula = currentlyInside;
 
+      // Substitui a lógica de fog anterior
       if (currentlyInside && !isNarymInNebula) {
         isNarymInNebula = true;
         scene.fogColor = BABYLON.Color3.FromHexString(nebulaConfig.fog.color);
         scene.fogDensity = nebulaConfig.fog.density;
-        console.log("Narym ENTROU no Véu de Numitri.");
       } else if (!currentlyInside && isNarymInNebula) {
         isNarymInNebula = false;
-        console.log("Narym SAIU do Véu de Numitri.");
       }
     }
   }

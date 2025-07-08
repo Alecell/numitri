@@ -64,6 +64,11 @@ function hasIdObj(state, idObj) {
 export const projectShadow = (occluderPivot, scene, config) => {
   if (!occluderPivot) return null;
 
+  // Reseta o flag no início de cada verificação para este corpo
+  if (occluderPivot.metadata) {
+    occluderPivot.metadata.isEclipsingNarym = false;
+  }
+
   const star = scene.getMeshByName(config.star.name);
   if (!star) return null;
 
@@ -95,6 +100,13 @@ export const projectShadow = (occluderPivot, scene, config) => {
   if (pickInfo.hit) {
     const receiverMesh = pickInfo.pickedMesh;
     const receiverName = receiverMesh.name;
+
+    // --- LÓGICA DE SINALIZAÇÃO ---
+    // Se o oclusor for Vezmar e o receptor for Narym, levanta o flag.
+    if (occluderPivot.name.includes("Vezmar") && receiverName === "Narym") {
+      occluderPivot.metadata.isEclipsingNarym = true;
+    }
+    // --- FIM DA LÓGICA DE SINALIZAÇÃO ---
 
     const id = {
       occluder: occluderPivot.name,
@@ -137,11 +149,11 @@ export const projectShadow = (occluderPivot, scene, config) => {
       decal.material = totalDecalMaterial;
     }
 
-    console.log(
-      `Sombra projetada de ${
-        occluderPivot.getChildren()[0].name
-      } para ${receiverName}`
-    );
+    // console.log(
+    //   `Sombra projetada de ${
+    //     occluderPivot.getChildren()[0].name
+    //   } para ${receiverName}`
+    // );
 
     state.push({ ...id, decal });
 
