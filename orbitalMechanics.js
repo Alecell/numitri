@@ -176,7 +176,7 @@ function getAbsoluteBodyPosition(
  * Calcula uma métrica de alinhamento entre Narym e Vezmar em relação a Anavon (origem).
  * @returns {number} O produto escalar dos vetores de direção, onde 1 é alinhamento perfeito.
  */
-function calculateAlignmentMetric(
+export function calculateAlignmentMetric(
   time,
   binarySystem,
   orbitData,

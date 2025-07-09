@@ -13,24 +13,18 @@ export const updateTimeControlsUI = (newScale) => {
   }
 };
 
-export const updateTimeDisplay = (time, yearLengthInDays) => {
+export const updateTimeDisplay = ({ ano, dia, hora, minuto }) => {
   const yearsDisplay = document.getElementById("years-display");
   const daysDisplay = document.getElementById("days-display");
   const hoursDisplay = document.getElementById("hours-display");
 
   if (!yearsDisplay || !daysDisplay || !hoursDisplay) return;
 
-  const currentYear = Math.floor(time / yearLengthInDays);
-  const dayOfYear = Math.floor(time % yearLengthInDays);
-  const fractionOfDay = time - Math.floor(time);
-  const totalMinutesInDay = NARIM_HOURS_IN_DAY * 60;
-  const currentMinuteOfDay = Math.floor(fractionOfDay * totalMinutesInDay);
-  const currentHour = Math.floor(currentMinuteOfDay / 60);
-  const currentMinute = currentMinuteOfDay % 60;
-  const formattedHour = String(currentHour).padStart(2, "0");
-  const formattedMinute = String(currentMinute).padStart(2, "0");
-  yearsDisplay.innerText = currentYear;
-  daysDisplay.innerText = dayOfYear;
+  const formattedHour = String(hora).padStart(2, "0");
+  const formattedMinute = String(minuto).padStart(2, "0");
+
+  yearsDisplay.innerText = ano;
+  daysDisplay.innerText = dia;
   hoursDisplay.innerText = `${formattedHour}:${formattedMinute}`;
 };
 
@@ -229,6 +223,17 @@ export const initializeUI = (camera, scene, config) => {
     );
   });
   visualRefGroup.appendChild(rayToggleLabel);
+
+  visualRefGroup.appendChild(rayToggleLabel);
+
+  // NOVO BLOCO DE CÓDIGO A SER ADICIONADO
+  const syncTestBtn = document.createElement("button");
+  syncTestBtn.innerText = "Teste de Sincronia de Eclipse";
+  syncTestBtn.style.marginTop = "10px";
+  syncTestBtn.onclick = () => {
+    window.dispatchEvent(new CustomEvent("runEclipseSyncTest"));
+  };
+  visualRefGroup.appendChild(syncTestBtn);
 
   // --- GRUPO DE CONTROLES DE TEMPO E ZOOM ---
   const timeGroup = document.createElement("div");

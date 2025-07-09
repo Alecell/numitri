@@ -16,6 +16,7 @@ import {
   initializeEclipseMaterials,
   projectShadow,
 } from "./shadowProjector.js";
+import { CalendarSystem } from "./calendar.js";
 
 const canvas = document.getElementById("renderCanvas");
 const engine = new BABYLON.Engine(canvas, true);
@@ -695,25 +696,20 @@ const handleJumpToTime = ({ year, day, hour, minute }) => {
     `Recebido pedido de salto para Ano: ${year}, Dia: ${day}, Hora: ${hour}, Minuto: ${minute}`
   );
 
-  const binarySystem = simulationConfig.planets.find(
-    (p) => p.type === "binaryPair"
-  );
-  if (!binarySystem) return;
-
-  const yearLengthInDays = binarySystem.orbit.period;
-
-  const timeFromYears = year * yearLengthInDays;
-  const timeFromDays = day;
-  const timeFromHours = hour / NARIM_HOURS_IN_DAY;
-  const timeFromMinutes = minute / (NARIM_HOURS_IN_DAY * 60);
-
-  const newSimulationTime =
-    timeFromYears + timeFromDays + timeFromHours + timeFromMinutes;
+  // Delega todo o cálculo de conversão para o nosso novo sistema.
+  const newSimulationTime = CalendarSystem.getSimulationTimeFromDate({
+    year,
+    day,
+    hour,
+    minute,
+  });
 
   simulationTime = newSimulationTime < 0 ? 0 : newSimulationTime;
 
+  // Atualiza imediatamente o estado visual e o display da UI.
   updateSystemState(simulationTime);
-  updateTimeDisplay(simulationTime, binarySystem.orbit.period);
+  const calendarState = CalendarSystem.getCalendarState(simulationTime);
+  updateTimeDisplay(calendarState);
 };
 
 // =======================================================
@@ -809,6 +805,7 @@ const createScene = () => {
 };
 
 const scene = createScene();
+CalendarSystem.initialize(simulationConfig);
 window.scene = scene;
 
 engine.runRenderLoop(() => {
@@ -827,8 +824,10 @@ engine.runRenderLoop(() => {
   const binarySystem = simulationConfig.planets.find(
     (p) => p.type === "binaryPair"
   );
-  if (binarySystem)
-    updateTimeDisplay(simulationTime, binarySystem.orbit.period);
+  if (binarySystem) {
+    const calendarState = CalendarSystem.getCalendarState(simulationTime);
+    updateTimeDisplay(calendarState);
+  }
 
   scene.render();
 });
@@ -905,3 +904,52 @@ window.addEventListener("toggleDarkSideLight", (event) =>
 window.addEventListener("jumpToTime", (event) =>
   handleJumpToTime(event.detail)
 );
+
+// Em main.js, no final do arquivo, junto com os outros event listeners
+
+// NOVO BLOCO DE CÓDIGO A SER ADICIONADO
+window.addEventListener("runEclipseSyncTest", () => {
+  if (!simulationConfig) return;
+
+  const currentYear = CalendarSystem.getCalendarState(simulationTime).ano;
+  const binarySystem = simulationConfig.planets.find(
+    (p) => p.type === "binaryPair"
+  );
+
+  console.log(`--- INICIANDO TESTE DE SINCRONIA PARA O ANO ${currentYear} ---`);
+
+  // Cálculo do Calendário (rápido)
+  // O ano N usa o eclipse do ciclo N-1
+  const calendarEclipseTime = CalendarSystem.getSimulationTimeFromDate({
+    year: currentYear,
+    day: 1,
+    hour: 0,
+    minute: 0,
+  });
+  console.log(
+    `[Calendário] Previsão de Eclipse (início do Ano ${currentYear}):`,
+    calendarEclipseTime.toFixed(4)
+  );
+
+  // Cálculo da Nebulosa (lento)
+  // O findConjunctionTime recebe o "ano" como "ciclo", então para o Ano N, usamos o ciclo N-1
+  const nebulaEclipseTime = findConjunctionTime(
+    currentYear - 1,
+    binarySystem,
+    simulationConfig.scale
+  );
+  console.log(
+    `[Nebulosa]   Previsão de Eclipse (ciclo ${currentYear - 1}):`,
+    nebulaEclipseTime.toFixed(4)
+  );
+
+  const difference = Math.abs(calendarEclipseTime - nebulaEclipseTime);
+  const differenceHours = difference * NARIM_HOURS_IN_DAY;
+  console.log(
+    `%cDiferença: ${difference.toFixed(4)} dias (${differenceHours.toFixed(
+      2
+    )} horas)`,
+    "color: yellow; font-weight: bold;"
+  );
+});
+// FIM DO NOVO BLOCO
