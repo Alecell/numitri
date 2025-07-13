@@ -300,17 +300,6 @@ const updateSystemState = (time) => {
           simulationConfig.scale
         );
         lastCalculatedEclipseYear = currentYear;
-
-        // --- LÓGICA DE LOG DE VALIDAÇÃO (1) ---
-        if (currentYear !== lastLoggedNebulaRecalcYear) {
-          console.log(
-            `%cSISTEMA: Ano ${currentYear}. Recalculando posição da nebulosa. Próximo eclipse previsto em t=${cachedEclipseTime.toFixed(
-              2
-            )}`,
-            "color: #87CEEB"
-          );
-          lastLoggedNebulaRecalcYear = currentYear;
-        }
       }
 
       const tempoDeReferencia = cachedEclipseTime;
@@ -629,25 +618,6 @@ const updateSystemState = (time) => {
     const distToStar = BABYLON.Vector3.Distance(
       narymPivot.getAbsolutePosition(),
       star.getAbsolutePosition()
-    );
-
-    const dayOfYear = Math.floor(simulationTime % yearLength);
-
-    console.log(
-      `%cEVENTO: ECLIPSE Vezmar->Narym DETECTADO no Ano ${currentYear}, Dia ${dayOfYear}`,
-      "color: #00ff00; font-weight: bold;"
-    );
-    console.log(
-      ` -> Dist. ao centro da nebulosa: ${(
-        (distToNebulaCenter -
-          nebulaConfig.offsetDistance * simulationConfig.scale) /
-        simulationConfig.scale
-      ).toFixed(0)} km (ideal: 0)`
-    );
-    console.log(
-      ` -> Dist. à estrela Anavon: ${(
-        distToStar / simulationConfig.scale
-      ).toFixed(0)} km`
     );
   } else if (!isEclipseNow && vezmarEclipseActive) {
     vezmarEclipseActive = false;

@@ -295,7 +295,5 @@ export const createPlanetarySystem = (scene, config) => {
 
   createNebula(scene, nebulaConfig);
 
-  console.log(
-    "Sistema Planetário reconstruído com hierarquia de pivôs corrigida."
-  );
+  console.log("Sistema Planetário.");
 };
