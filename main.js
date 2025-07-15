@@ -4,6 +4,9 @@ import {
   initializeUI,
   updateTimeControlsUI,
   updateTimeDisplay,
+  initializeAnchorControls,
+  updateAnchorControls,
+  updateAnchorList,
 } from "./uiController.js";
 import {
   calculateEllipticalOrbit,
@@ -16,6 +19,8 @@ import {
   initializeEclipseMaterials,
   projectShadow,
 } from "./shadowProjector.js";
+import { StateManager } from "./stateManager.js";
+import { CalendarAnchorSystem } from "./calendarAnchorSystem.js";
 
 const canvas = document.getElementById("renderCanvas");
 const engine = new BABYLON.Engine(canvas, true);
@@ -33,10 +38,20 @@ let lastCalculatedEclipseYear = -1;
 let cachedEclipseTime = 0;
 let vezmarEclipseActive = false;
 let wasNarymInNebula = false;
+let stateManager;
+let calendarAnchorSystem;
+let currentYear = 0;
 let lastLoggedNebulaRecalcYear = -1;
 
 const NARIM_HOURS_IN_DAY = 30.0;
 const OCCLUDING_BODIES = ["Narym", "Vezmar", "Tharela", "Ciren"];
+
+const setSimulationTime = (time, silent = false) => {
+  simulationTime = time;
+  if (!silent) {
+    timeJustJumped = true;
+  }
+};
 
 // =======================================================
 // FUNÇÕES DE CONTROLE DE ESTADO (POV, Inspeção)
@@ -231,7 +246,6 @@ const updateSystemState = (time) => {
   if (!binarySystem) return;
 
   const yearLength = binarySystem.orbit.period;
-  const currentYear = Math.floor(simulationTime / yearLength);
 
   // --- LÓGICA DO SISTEMA BINÁRIO (sem alterações) ---
   let currentEccentricity = binarySystem.orbit.eccentricity;
@@ -665,25 +679,25 @@ const handleJumpToTime = ({ year, day, hour, minute }) => {
     `Recebido pedido de salto para Ano: ${year}, Dia: ${day}, Hora: ${hour}, Minuto: ${minute}`
   );
 
-  const binarySystem = simulationConfig.planets.find(
-    (p) => p.type === "binaryPair"
-  );
-  if (!binarySystem) return;
+  // A lógica para encontrar o tempo de início permanece a mesma
+  const anchor = calendarAnchorSystem.anchors[year];
+  let newTime = 0;
 
-  const yearLengthInDays = binarySystem.orbit.period;
+  if (anchor) {
+    newTime = anchor.dayZeroTimestamp;
+  } else {
+    const fallbackYearLength = 754;
+    newTime = year * fallbackYearLength;
+  }
 
-  const timeFromYears = year * yearLengthInDays;
+  // A lógica de cálculo do tempo final permanece a mesma
   const timeFromDays = day;
   const timeFromHours = hour / NARIM_HOURS_IN_DAY;
   const timeFromMinutes = minute / (NARIM_HOURS_IN_DAY * 60);
+  const finalTime = newTime + timeFromDays + timeFromHours + timeFromMinutes;
 
-  const newSimulationTime =
-    timeFromYears + timeFromDays + timeFromHours + timeFromMinutes;
-
-  simulationTime = newSimulationTime < 0 ? 0 : newSimulationTime;
-
-  updateSystemState(simulationTime);
-  updateTimeDisplay(simulationTime, binarySystem.orbit.period);
+  // A correção crucial: chama a função global que agora está acessível.
+  setSimulationTime(finalTime < 0 ? 0 : finalTime);
 };
 
 // =======================================================
@@ -775,6 +789,24 @@ const createScene = () => {
   initializeUI(scene.activeCamera, scene, simulationConfig);
   initializeEclipseMaterials(scene);
 
+  stateManager = new StateManager(scene);
+
+  const getSimTime = () => simulationTime;
+  const getCurrentYear = () => currentYear;
+
+  // Passa a referência da função global 'setSimulationTime'
+  calendarAnchorSystem = new CalendarAnchorSystem(
+    stateManager,
+    { updateAnchorControls, updateAnchorList },
+    updateSystemState,
+    getSimTime,
+    setSimulationTime
+  );
+
+  initializeAnchorControls(calendarAnchorSystem, getCurrentYear);
+
+  return scene;
+
   return scene;
 };
 
@@ -797,8 +829,110 @@ engine.runRenderLoop(() => {
   const binarySystem = simulationConfig.planets.find(
     (p) => p.type === "binaryPair"
   );
-  if (binarySystem)
-    updateTimeDisplay(simulationTime, binarySystem.orbit.period);
+  if (binarySystem) {
+    if (calendarAnchorSystem && calendarAnchorSystem.isDefiningMode) {
+      // LÓGICA DO MODO DE DEFINIÇÃO (já está correta)
+      const displayYear = calendarAnchorSystem.lockedYear;
+      const fallbackYearLength = binarySystem.orbit.period;
+      const estimatedYearStartTime = displayYear * fallbackYearLength;
+      const timeIntoYear = simulationTime - estimatedYearStartTime;
+      const displayDay = Math.floor(timeIntoYear);
+      const fractionOfDay = timeIntoYear - displayDay;
+      const totalMinutesInDay = NARIM_HOURS_IN_DAY * 60;
+      const currentMinuteOfDay = Math.floor(fractionOfDay * totalMinutesInDay);
+      const currentHour = Math.floor(currentMinuteOfDay / 60);
+      const currentMinute = currentMinuteOfDay % 60;
+      const formattedHour = String(currentHour).padStart(2, "0");
+      const formattedMinute = String(currentMinute).padStart(2, "0");
+      document.getElementById("years-display").innerText = displayYear;
+      document.getElementById("days-display").innerText = displayDay;
+      document.getElementById(
+        "hours-display"
+      ).innerText = `${formattedHour}:${formattedMinute}`;
+      currentYear = displayYear;
+    } else {
+      // LÓGICA DO MODO NORMAL (com a correção de rollover)
+      let activeAnchor = null;
+      let closestAnchorTime = -1;
+
+      for (const year in calendarAnchorSystem.anchors) {
+        const anchor = calendarAnchorSystem.anchors[year];
+        if (
+          anchor.dayZeroTimestamp <= simulationTime &&
+          anchor.dayZeroTimestamp > closestAnchorTime
+        ) {
+          closestAnchorTime = anchor.dayZeroTimestamp;
+          activeAnchor = anchor;
+        }
+      }
+
+      if (activeAnchor) {
+        // VERIFICA SE ESTAMOS DENTRO DOS LIMITES DA ÂNCORA ATIVA
+        if (simulationTime <= activeAnchor.dayLastTimestamp) {
+          // Estamos DENTRO do ano ancorado.
+          currentYear = activeAnchor.year;
+          const timeSinceYearStart =
+            simulationTime - activeAnchor.dayZeroTimestamp;
+
+          const displayYear = parseInt(currentYear);
+          const displayDay = Math.floor(timeSinceYearStart);
+          const fractionOfDay = timeSinceYearStart - displayDay;
+          // ... (lógica de hora/minuto)
+          const totalMinutesInDay = NARIM_HOURS_IN_DAY * 60;
+          const currentMinuteOfDay = Math.floor(
+            fractionOfDay * totalMinutesInDay
+          );
+          const currentHour = Math.floor(currentMinuteOfDay / 60);
+          const currentMinute = currentMinuteOfDay % 60;
+
+          document.getElementById("years-display").innerText = displayYear;
+          document.getElementById("days-display").innerText = displayDay;
+          document.getElementById("hours-display").innerText = `${String(
+            currentHour
+          ).padStart(2, "0")}:${String(currentMinute).padStart(2, "0")}`;
+        } else {
+          // PASSAMOS do ano ancorado. Retomamos a contagem normal.
+          const fallbackYearLength = binarySystem.orbit.period;
+
+          // Calcula o tempo que passou DESDE o fim do ano ancorado.
+          const timeAfterAnchor =
+            simulationTime - activeAnchor.dayLastTimestamp;
+
+          // Calcula quantos anos-padrão se passaram nesse tempo.
+          const yearsAfterAnchor = Math.floor(
+            timeAfterAnchor / fallbackYearLength
+          );
+
+          // O ano atual é o da âncora + 1 (para o ano seguinte) + os anos que se passaram desde então.
+          currentYear = parseInt(activeAnchor.year) + 1 + yearsAfterAnchor;
+
+          // O dia é o resto da divisão.
+          const dayInNewYear = Math.floor(timeAfterAnchor % fallbackYearLength);
+
+          // Lógica de hora/minuto para o tempo pós-âncora
+          const fractionOfDay =
+            (timeAfterAnchor % fallbackYearLength) - dayInNewYear;
+          const totalMinutesInDay = NARIM_HOURS_IN_DAY * 60;
+          const currentMinuteOfDay = Math.floor(
+            fractionOfDay * totalMinutesInDay
+          );
+          const currentHour = Math.floor(currentMinuteOfDay / 60);
+          const currentMinute = currentMinuteOfDay % 60;
+
+          document.getElementById("years-display").innerText = currentYear;
+          document.getElementById("days-display").innerText = dayInNewYear;
+          document.getElementById("hours-display").innerText = `${String(
+            currentHour
+          ).padStart(2, "0")}:${String(currentMinute).padStart(2, "0")}`;
+        }
+      } else {
+        // Lógica de fallback (nenhuma âncora alcançada ainda)
+        const yearLengthInDays = binarySystem.orbit.period;
+        currentYear = Math.floor(simulationTime / yearLengthInDays);
+        updateTimeDisplay(simulationTime, yearLengthInDays);
+      }
+    }
+  }
 
   scene.render();
 });

@@ -35,6 +35,7 @@ export const updateTimeDisplay = (time, yearLengthInDays) => {
 };
 
 export const initializeUI = (camera, scene, config) => {
+  const NARIM_HOURS_IN_DAY = 30.0;
   const menuContainer = document.getElementById("controls-menu");
   if (!menuContainer) return;
   menuContainer.innerHTML = "<h3>Controles</h3>";
@@ -363,5 +364,102 @@ export const initializeUI = (camera, scene, config) => {
         detail: { isEnabled: event.target.checked, scene },
       })
     );
+  });
+};
+
+export const initializeAnchorControls = (
+  calendarAnchorSystem,
+  getCurrentYearCallback
+) => {
+  const menuContainer = document.getElementById("controls-menu");
+
+  const anchorGroup = document.createElement("div");
+  anchorGroup.className = "control-group";
+  anchorGroup.id = "anchor-management-group";
+  anchorGroup.innerHTML = `
+    <h3 style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #555;">Gerenciador de Ano</h3>
+    <button id="start-define-year-btn">Iniciar Definição de Ano</button>
+    <div id="defining-controls" style="display: none;">
+      <button id="set-day-zero-btn">Definir Dia 0</button>
+      <button id="set-last-day-btn">Definir Último Dia</button>
+      <button id="save-year-config-btn" style="background-color: #2a8c4a;">Salvar Configuração do Ano</button>
+    </div>
+    <div id="saved-years-list-container">
+      <label>Anos Salvos</label>
+      <ul id="saved-years-list" style="list-style: none; padding: 0; max-height: 150px; overflow-y: auto;"></ul>
+    </div>
+  `;
+  menuContainer.appendChild(anchorGroup);
+
+  document.getElementById("start-define-year-btn").onclick = () => {
+    calendarAnchorSystem.startDefinition(getCurrentYearCallback());
+  };
+  document.getElementById("set-day-zero-btn").onclick = () =>
+    calendarAnchorSystem.setDayZero();
+  document.getElementById("set-last-day-btn").onclick = () =>
+    calendarAnchorSystem.setLastDay();
+  document.getElementById("save-year-config-btn").onclick = () =>
+    calendarAnchorSystem.saveCurrentAnchor();
+
+  // Chame a atualização da lista inicial.
+  updateAnchorList(calendarAnchorSystem.anchors, calendarAnchorSystem);
+};
+
+export const updateAnchorControls = (isDefining) => {
+  document.getElementById("start-define-year-btn").style.display = isDefining
+    ? "none"
+    : "block";
+  document.getElementById("defining-controls").style.display = isDefining
+    ? "block"
+    : "none";
+};
+
+export const updateAnchorList = (anchors, calendarAnchorSystem) => {
+  const list = document.getElementById("saved-years-list");
+  list.innerHTML = ""; // Limpa a lista
+
+  const sortedYears = Object.keys(anchors).sort((a, b) => a - b);
+
+  if (sortedYears.length === 0) {
+    list.innerHTML = `<li style="font-style: italic; color: #888; padding: 5px;">Nenhuma âncora salva.</li>`;
+    return;
+  }
+
+  sortedYears.forEach((year) => {
+    const li = document.createElement("li");
+    li.style.display = "flex";
+    li.style.justifyContent = "space-between";
+    li.style.alignItems = "center";
+    li.style.padding = "4px";
+    li.style.marginBottom = "2px";
+    li.style.backgroundColor = "rgba(255, 255, 255, 0.05)";
+
+    const yearLabel = document.createElement("span");
+    yearLabel.innerText = `Ano ${year}`;
+    li.appendChild(yearLabel);
+
+    const buttonsDiv = document.createElement("div");
+    const applyBtn = document.createElement("button");
+    applyBtn.innerText = "Aplicar";
+    applyBtn.style.width = "auto";
+    applyBtn.style.padding = "2px 8px";
+    applyBtn.style.fontSize = "12px";
+    applyBtn.style.marginBottom = "0";
+    applyBtn.style.marginRight = "5px";
+    applyBtn.onclick = () => calendarAnchorSystem.applyAnchor(year);
+    buttonsDiv.appendChild(applyBtn);
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.innerText = "X";
+    deleteBtn.style.width = "auto";
+    deleteBtn.style.padding = "2px 6px";
+    deleteBtn.style.fontSize = "12px";
+    deleteBtn.style.marginBottom = "0";
+    deleteBtn.style.backgroundColor = "#8c2a2a";
+    deleteBtn.onclick = () => calendarAnchorSystem.deleteAnchor(year);
+    buttonsDiv.appendChild(deleteBtn);
+
+    li.appendChild(buttonsDiv);
+    list.appendChild(li);
   });
 };
