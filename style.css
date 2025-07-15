@@ -154,3 +154,7 @@ body {
   font-family: monospace;
   font-size: 15px;
 }
+
+.anchor-buttons {
+  display: flex;
+}

@@ -447,6 +447,7 @@ export const updateAnchorList = (anchors, calendarAnchorSystem) => {
     applyBtn.style.marginBottom = "0";
     applyBtn.style.marginRight = "5px";
     applyBtn.onclick = () => calendarAnchorSystem.applyAnchor(year);
+    buttonsDiv.classList.add("anchor-buttons");
     buttonsDiv.appendChild(applyBtn);
 
     const deleteBtn = document.createElement("button");
