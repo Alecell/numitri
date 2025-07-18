@@ -18,7 +18,7 @@
  * no pino do equador, se o pino do equador possuir mares baixas, significa que onde ele
  * nào está, o mar está alto. E vice-versa. Mas como exibir isso? Indice de força de maré
  *
- *
+ * TODO: Adicionar linhas equatoriais em vezmar de eclipse para uma maior precisão de Numve
  */
 
 export const simulationConfig = {
@@ -192,6 +192,9 @@ export const simulationConfig = {
           axialTilt: 4,
           rotationPeriod: 11.3 / 30,
           orbitRadius: 1947000,
+          debugFeatures: {
+            polePins: true,
+          },
           shadowCasting: {
             Narym: {
               type: "total",

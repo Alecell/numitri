@@ -129,7 +129,6 @@ const exitInspectMode = (detail) => {
   isInInspectMode = false;
 
   simulationConfig.timeScale = lastTimeScale;
-  isPaused = false;
   updateTimeControlsUI(simulationConfig.timeScale);
 
   scene.activeCamera.detachControl();
@@ -156,6 +155,65 @@ const toggleDarkSideLight = ({ isEnabled, scene }) => {
 // =======================================================
 // FUNÇÕES DE ATUALIZAÇÃO E CÁLCULO
 // =======================================================
+// Em main.js, substitua a função 'convertDateToTime' inteira por esta versão final e corrigida:
+
+const convertDateToTime = ({ year, day, hour, minute }) => {
+  const fallbackYearLength = simulationConfig.planets.find(
+    (p) => p.type === "binaryPair"
+  ).orbit.period;
+
+  // NOVO: Primeiro, verifica se o próprio ano alvo é uma âncora.
+  const targetYearAnchor = calendarAnchorSystem.anchors[year];
+  if (targetYearAnchor) {
+    // Se for, o cálculo é direto a partir do início daquele ano.
+    const baseTime = targetYearAnchor.dayZeroTimestamp;
+
+    const timeFromDays = day;
+    const timeFromHours = hour / NARIM_HOURS_IN_DAY;
+    const timeFromMinutes = minute / (NARIM_HOURS_IN_DAY * 60);
+    const timeWithinTargetYear = timeFromDays + timeFromHours + timeFromMinutes;
+
+    return baseTime + timeWithinTargetYear;
+  } else {
+    // Se o ano alvo NÃO é uma âncora, usamos a lógica anterior.
+    // 1. Encontrar a âncora mais recente ANTES do ano alvo.
+    let latestAnchorBeforeTarget = null;
+    for (const anchorYear in calendarAnchorSystem.anchors) {
+      if (parseInt(anchorYear) < year) {
+        if (
+          !latestAnchorBeforeTarget ||
+          parseInt(anchorYear) > parseInt(latestAnchorBeforeTarget.year)
+        ) {
+          latestAnchorBeforeTarget = calendarAnchorSystem.anchors[anchorYear];
+        }
+      }
+    }
+
+    let baseTime = 0;
+    let baseYear = 0;
+
+    if (latestAnchorBeforeTarget) {
+      // 2. Se uma âncora foi encontrada, ela é nosso ponto de partida.
+      baseTime = latestAnchorBeforeTarget.dayLastTimestamp;
+      baseYear = parseInt(latestAnchorBeforeTarget.year) + 1;
+    }
+
+    // 3. Calcula o tempo acumulado entre o nosso ponto de partida e o ano alvo.
+    const yearsToCalculate = year - baseYear;
+    const timeFromIntermediateYears =
+      yearsToCalculate > 0 ? yearsToCalculate * fallbackYearLength : 0;
+
+    // 4. Calcula o tempo dentro do ano alvo.
+    const timeFromDays = day;
+    const timeFromHours = hour / NARIM_HOURS_IN_DAY;
+    const timeFromMinutes = minute / (NARIM_HOURS_IN_DAY * 60);
+    const timeWithinTargetYear = timeFromDays + timeFromHours + timeFromMinutes;
+
+    // 5. O tempo final é a soma de tudo.
+    return baseTime + timeFromIntermediateYears + timeWithinTargetYear;
+  }
+};
+
 const updateNebulaDecay = (pivot) => {
   const meshes = pivot.getChildMeshes(false);
   const mesh = meshes[0];
@@ -679,24 +737,10 @@ const handleJumpToTime = ({ year, day, hour, minute }) => {
     `Recebido pedido de salto para Ano: ${year}, Dia: ${day}, Hora: ${hour}, Minuto: ${minute}`
   );
 
-  // A lógica para encontrar o tempo de início permanece a mesma
-  const anchor = calendarAnchorSystem.anchors[year];
-  let newTime = 0;
+  // Converte a data para um timestamp usando a nova lógica unificada.
+  const finalTime = convertDateToTime({ year, day, hour, minute });
 
-  if (anchor) {
-    newTime = anchor.dayZeroTimestamp;
-  } else {
-    const fallbackYearLength = 754;
-    newTime = year * fallbackYearLength;
-  }
-
-  // A lógica de cálculo do tempo final permanece a mesma
-  const timeFromDays = day;
-  const timeFromHours = hour / NARIM_HOURS_IN_DAY;
-  const timeFromMinutes = minute / (NARIM_HOURS_IN_DAY * 60);
-  const finalTime = newTime + timeFromDays + timeFromHours + timeFromMinutes;
-
-  // A correção crucial: chama a função global que agora está acessível.
+  // Define o tempo da simulação.
   setSimulationTime(finalTime < 0 ? 0 : finalTime);
 };
 
