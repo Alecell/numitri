@@ -1,4 +1,7 @@
 /**
+ * TODOS OS MEDIDORES E INDICADORES DEVEM SER FEITOS COM BASE NO MESMO SISTEMA
+ * DE DEFINIÇÃO DE ANCORAS NO TEMPO, SEM CALCULO NEM NADA, ASSIM COMO O AJUSTE
+ * NO CONTINUO ESPAÇO-TEMPO
  * TODO: Identificador de estações - qual é a estação corrente no norte e no sul
  * Aqui é mencionado tambem ter um dado de intensidade de radiação solar. Colocar
  * um possivel medidor de insolação atual das trez zonas planetarias Polar, temperada e equatorial
